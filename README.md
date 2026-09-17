@@ -193,6 +193,7 @@ interface IGetoAdapter<T, R> {
 | `JsonAdapter` | `SERIALIZE` | Serializes arbitrary JavaScript objects/values to JSON strings |
 | `StreamAdapter` | `CAPTURE` | Drains a readable stream and restores fresh, replayable streams |
 | `ProcessAdapter` | `WRAP` | Wraps active ChildProcess instances with supervised termination on release |
+| `HttpReferenceAdapter` | `REGISTER` | Registers remote URL resource references and lazily resolves them on restore |
 
 ### Custom adapters
 

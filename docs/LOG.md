@@ -1,6 +1,17 @@
 # Engineering Log
 
-## 2026-09-17: Milestone 0.4.0 — WRAP Semantic (ProcessAdapter, IProcessHandle)
+## 2026-09-17: Milestone 0.5.0 — REGISTER Semantic (HttpReferenceAdapter)
+
+**Context:** Prove the final fundamental consumption semantic: `REGISTER`. Demonstrates that consuming does not require materializing or fetching a resource immediately. A locator or reference is consumed, and the actual resource is resolved lazily on demand upon `restore()`.
+
+**Implementation details:**
+- `HttpReferenceAdapter`: consumes URL strings (`URL string (T) -> stored URL (R)`).
+- `consume()`: validates the URL and stores the locator. **0 network requests are dispatched**.
+- `restore()`: dispatches the HTTP GET request using `fetch` and resolves the response body.
+- **Security precaution:** Origin whitelist support (`allowedOrigins`) protects against Server-Side Request Forgery (SSRF) and untrusted internal network targets.
+- **Core verification:** The baseline `GetoGateway` orchestrator successfully handled lazy reference-based entities across both `MemoryStorage` and `FileStorage` without any core API modifications. All 5 fundamental consumption semantics are now proven.
+
+---
 
 **Context:** Resolve the architectural debate around WRAP vs CAPTURE. Unlike CAPTURE (which drena or snapshots a resource into inert data), WRAP retains an active, living handle to the running resource while providing supervision and lifecycle management.
 

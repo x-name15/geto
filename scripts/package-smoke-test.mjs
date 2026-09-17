@@ -6,6 +6,7 @@ import {
   JsonAdapter,
   StreamAdapter,
   ProcessAdapter,
+  HttpReferenceAdapter,
   GetoError,
   EntityNotFoundError
 } from '../dist/index.js';
@@ -18,6 +19,7 @@ if (
   !JsonAdapter ||
   !StreamAdapter ||
   !ProcessAdapter ||
+  !HttpReferenceAdapter ||
   !GetoError ||
   !EntityNotFoundError
 ) {

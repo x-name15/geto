@@ -199,4 +199,53 @@ describe('Integration Tests', () => {
       }
     }
   });
+
+  it('REGISTER semantic: HttpReferenceAdapter registers locator without fetch and resolves on restore', async () => {
+    const fs = await import('fs/promises');
+    const path = await import('path');
+    const os = await import('os');
+    const { FileStorage } = await import('../../storage/file-storage.js');
+    const { HttpReferenceAdapter } = await import('../../adapters/http-reference-adapter.js');
+
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'geto-register-test-'));
+    let networkCalls = 0;
+    const mockResponseBody = '{"spirit":"Rika","power":9999}';
+
+    const customFetch = async () => {
+      networkCalls++;
+      return {
+        ok: true,
+        status: 200,
+        text: async () => mockResponseBody,
+      } as unknown as Response;
+    };
+
+    try {
+      const storage = new FileStorage(tempDir);
+      const gateway = new GetoGateway({ storage });
+      const adapter = new HttpReferenceAdapter({
+        allowedOrigins: ['https://registry.jujutsu.ac.jp'],
+        fetchFn: customFetch as typeof fetch,
+      });
+
+      const resourceUrl = 'https://registry.jujutsu.ac.jp/api/curse-records/001';
+
+      // 1. Consume: registers the URL locator, persists it to disk, 0 network requests
+      const entity = await gateway.consume(resourceUrl, adapter);
+      expect(entity.adapterId).toBe('http-reference');
+      expect(networkCalls).toBe(0);
+
+      // 2. Restore: triggers the HTTP request and resolves the live resource
+      const payload1 = await gateway.restore(entity, adapter);
+      expect(networkCalls).toBe(1);
+      expect(payload1).toBe(mockResponseBody);
+
+      // 3. Subsequent restore: dispatches network again or as defined by adapter
+      const payload2 = await gateway.restore(entity, adapter);
+      expect(networkCalls).toBe(2);
+      expect(payload2).toBe(mockResponseBody);
+    } finally {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    }
+  });
 });

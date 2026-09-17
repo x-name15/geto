@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0] - 2026-09-17 — REGISTER semantic: HttpReferenceAdapter
+
+### Added
+- `HttpReferenceAdapter` implementing the `REGISTER` consumption semantic (`URL string (T) -> stored URL (R)`).
+- Zero-network consumption where URL locators are validated and registered without initiating HTTP calls.
+- Lazy resolution upon `restore()`, dispatching the HTTP GET request and returning the body payload.
+- SSRF mitigation policy with configurable `allowedOrigins` whitelist support.
+- Unit and integration tests demonstrating locator registration, deferred network fetching, and origin security enforcement.
+- Package smoke test coverage for `HttpReferenceAdapter`.
+
 ## [0.4.0] - 2026-09-17 — WRAP semantic: ProcessAdapter, IProcessHandle
 
 ### Added
