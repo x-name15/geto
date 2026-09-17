@@ -52,7 +52,9 @@ const entity = await geto.consume(Buffer.from("hello"), new BufferAdapter());
 const result = await geto.restore(entity, new BufferAdapter());
 console.log(result.toString()); // "hello"
 ```
-Works. Tests pass. Core API is locked.
+Works. Tests pass. Core API baseline established.
+
+> **Note on progression:** As we progress from `COPY` to `SERIALIZE`, `CAPTURE`, `WRAP`, and `REGISTER`, each semantic stress-tests the base `IGetoAdapter<T, R>` contract. In particular, `0.4.0 (WRAP)` will clarify the distinction between snapshot-based capture and managing live references before committing to implementation details.
 
 ---
 
