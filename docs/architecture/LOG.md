@@ -1,5 +1,18 @@
 # Engineering Log
 
+## 2026-09-17: Milestone 1.0.0 — Stable Baseline & Developer Manual
+
+**Context:** Mark the first official major milestone (`1.0.0`) of `geto`. With all 5 consumption semantics (`COPY`, `SERIALIZE`, `CAPTURE`, `WRAP`, `REGISTER`) proven end-to-end and verified across memory and filesystem storages, the core API contract is established as clean and stable.
+
+**Achievements & Quality Enhancements:**
+- Created full developer documentation in `docs/DEVELOPER_GUIDE.md` detailing architecture, step-by-step guides for custom adapters (e.g. gzip compression) and custom storage providers (e.g. Redis).
+- Introduced CodeQL security scanning and Semantic PR validation in `.github/workflows/`.
+- Fixed binary fidelity in `FileStorage` using base64 envelope typing.
+- 64 automated tests passing with 0 artificial or hardcoded mocks.
+- 0 external runtime dependencies.
+
+---
+
 ## 2026-09-17: Milestone 0.5.0 — REGISTER Semantic (HttpReferenceAdapter)
 
 **Context:** Prove the final fundamental consumption semantic: `REGISTER`. Demonstrates that consuming does not require materializing or fetching a resource immediately. A locator or reference is consumed, and the actual resource is resolved lazily on demand upon `restore()`.
@@ -13,6 +26,8 @@
 
 ---
 
+## 2026-09-17: Milestone 0.4.0 — WRAP Semantic (ProcessAdapter, IProcessHandle)
+
 **Context:** Resolve the architectural debate around WRAP vs CAPTURE. Unlike CAPTURE (which drena or snapshots a resource into inert data), WRAP retains an active, living handle to the running resource while providing supervision and lifecycle management.
 
 **Implementation details:**
@@ -25,6 +40,8 @@
 
 ---
 
+## 2026-09-17: Milestone 0.3.0 — CAPTURE Semantic (StreamAdapter)
+
 **Context:** Node.js `Readable` streams are single-use resources. Once drained, they cannot be read again. The `CAPTURE` semantic demonstrates taking control of a resource whose lifecycle is transient or destructive upon consumption.
 
 **Implementation details:**
@@ -34,6 +51,8 @@
 - **Core verification:** The baseline `GetoGateway` contract and lifecycle remained 100% unchanged.
 
 ---
+
+## 2026-09-17: Milestone 0.2.0 — SERIALIZE Semantic & Storage Swappability
 
 **Context:** Prove that geto supports transformations where the stored representation $R$ is of a different type than the input resource $T$ ($R \neq T$), and prove storage swappability using a disk-based backend.
 

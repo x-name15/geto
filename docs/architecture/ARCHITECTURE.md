@@ -296,25 +296,25 @@ It mirrors the reality that the gateway does not know what type of resource was 
 
 ## V1 scope — what gets built
 
-| Item | Status |
+| Feature | Status |
 |---|---|
 | `IGetoAdapter<T, R>` interface | ✅ V1 |
 | `IGetoStorage` interface | ✅ V1 |
 | `IEntity` + `EEntityState` | ✅ V1 |
 | `GetoGateway` | ✅ V1 |
 | `MemoryStorage` | ✅ V1 |
-| `BufferAdapter` | ✅ V1 |
+| `FileStorage` | ✅ V1 |
+| `BufferAdapter` (`COPY`) | ✅ V1 |
+| `JsonAdapter` (`SERIALIZE`) | ✅ V1 |
+| `StreamAdapter` (`CAPTURE`) | ✅ V1 |
+| `ProcessAdapter` (`WRAP`) | ✅ V1 |
+| `HttpReferenceAdapter` (`REGISTER`) | ✅ V1 |
 | Error hierarchy | ✅ V1 |
-| Unit tests | ✅ V1 |
+| Unit tests (64 tests) | ✅ V1 |
 | Integration tests | ✅ V1 |
-| `FileStorage` | ⏳ V2 |
-| `FileAdapter` | ⏳ V2 |
-| `StreamAdapter` | ⏳ V2 |
-| `HttpAdapter` | ⏳ V2 |
-| Adapter registration on gateway | ⏳ V2 |
-| Event system | ⏳ future |
-| CLI | ⏳ future (only if it makes sense) |
-| Redis / DB / S3 storage | ⏳ future |
+| Adapter registration on gateway | ⏳ V2 (if deemed necessary) |
+| Event system / hooks | ⏳ V2 |
+| Distributed Redis / S3 storage | ⏳ Community / Plugins |
 
 ---
 

@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.0] - 2026-09-17 — First stable milestone: All 5 semantics proven & complete developer manual
+
+### Added
+- Comprehensive Developer Guide & Manual (`docs/DEVELOPER_GUIDE.md`) with end-to-end tutorials for custom adapters and custom storage engines.
+- CodeQL automated security analysis workflow (`.github/workflows/codeql.yml`).
+- Semantic PR title validation workflow (`.github/workflows/semantic-pr.yml`).
+- Typed representation envelope in `FileStorage` to guarantee binary Buffer fidelity.
+- Stable, frozen Core Gateway contract supporting all 5 fundamental consumption semantics (`COPY`, `SERIALIZE`, `CAPTURE`, `WRAP`, `REGISTER`).
+
+### Fixed
+- Fixed binary buffer truncation in `FileStorage` by introducing typed base64 envelope storage.
+
 ## [0.5.0] - 2026-09-17 — REGISTER semantic: HttpReferenceAdapter
 
 ### Added

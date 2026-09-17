@@ -128,15 +128,15 @@ A developer can consume a Node.js `Readable`, have it fully managed, and restore
 
 ---
 
-## 1.0.0 — Public release
+## 1.0.0 — Stable Milestone (Completed)
 
-**Criteria:**
-- All five semantics proven by their respective adapters.
-- Core API (`GetoGateway`, `IGetoAdapter`, `IGetoStorage`) is stable.
-- No breaking changes planned.
-- README is complete with real examples for all five semantics.
-- All tests pass.
-- `package.json` version is `1.0.0`.
+**Criteria met:**
+- [x] All five semantics proven by their respective adapters (`BufferAdapter`, `JsonAdapter`, `StreamAdapter`, `ProcessAdapter`, `HttpReferenceAdapter`).
+- [x] Core API (`GetoGateway`, `IGetoAdapter`, `IGetoStorage`) is proven stable across storage engines (`MemoryStorage`, `FileStorage`).
+- [x] Full developer documentation suite in `docs/` (`guides/`, `adapters/`, `storage/`, `architecture/`).
+- [x] CodeQL security scan and Semantic PR CI workflows active.
+- [x] 64 tests passing with zero artificial mocks.
+- [x] Smoke testing validating packaged distribution.
 
 ---
 
