@@ -120,6 +120,39 @@ describe('GetoGateway', () => {
       await gateway.delete(entity.id);
       await expect(gateway.release(entity, adapter)).rejects.toThrow(EntityStateError);
     });
+
+    it('does not overwrite DELETED state if entity was deleted concurrently during release', async () => {
+      const entity = await gateway.consume(Buffer.from('test'), adapter);
+
+      let releaseResolve: () => void = () => {};
+      const releasePromise = new Promise<void>((resolve) => {
+        releaseResolve = resolve;
+      });
+
+      const slowReleasableAdapter: IGetoAdapter<Buffer, Buffer> = {
+        adapterId: 'slow-buffer',
+        semantic: EConsumptionSemantic.WRAP,
+        consume: async (b) => b,
+        restore: async (b) => b,
+        release: async () => {
+          await releasePromise;
+        },
+      };
+
+      // Start release in background
+      const releaseOp = gateway.release(entity, slowReleasableAdapter);
+
+      // Concurrently delete the entity while release() is in-flight
+      await gateway.delete(entity.id);
+
+      // Now complete the adapter release hook
+      releaseResolve();
+
+      // The releaseOp must reject with EntityStateError and NOT overwrite state to RELEASED
+      await expect(releaseOp).rejects.toThrow(EntityStateError);
+
+      expect(await gateway.exists(entity.id)).toBe(false);
+    });
   });
 
   describe('delete', () => {

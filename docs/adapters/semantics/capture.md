@@ -93,7 +93,8 @@ async function streamToString(stream: Readable): Promise<string> {
 
 async function run() {
   const gateway = new GetoGateway({ storage: new MemoryStorage() });
-  const adapter = new StreamAdapter();
+  // Guard against Denial-of-Service / OOM by setting an upper memory bound (e.g. 10 MB)
+  const adapter = new StreamAdapter({ maxBytes: 10 * 1024 * 1024 });
 
   // 1. Simulate an ephemeral incoming multipart payload stream
   const incoming = Readable.from([
@@ -131,6 +132,8 @@ run().catch(console.error);
 
 ## 5. Memory & Throughput Considerations
 
-- **Buffer Aggregation in Memory:** `StreamAdapter` buffers the entire stream content into memory before saving to storage. For standard web payloads, JSON documents, PDFs, and moderate file uploads (< 100MB), this is fast and predictable.
+- **Denial-of-Service Protection (`maxBytes`):** Unbounded incoming streams risk crashing the process via `JavaScript heap out of memory`. Setting `maxBytes` in `IStreamAdapterOptions` immediately halts consumption and destroys the stream with an `AdapterError` if this threshold is crossed.
+- **Deadlock Protection:** Streams that are already ended (`readableEnded: true`) or destroyed (`destroyed: true`) are rejected immediately, preventing promises from hanging indefinitely.
 - **Large Files (> 1GB):** If buffering gigabyte-sized files, ensure your Node.js process has sufficient heap memory, or configure `FileStorage` so the final buffer is flushed directly to disk and unreferenced from V8 memory.
 - **Empty Streams:** Draining an empty stream (`Readable.from([])`) is safely supported, producing a valid zero-length buffer representation.
+

@@ -69,4 +69,51 @@ describe('StreamAdapter', () => {
     await adapter.release(activeStream);
     expect(activeStream.destroyed).toBe(true);
   });
+
+  it('rejects an already ended stream immediately to prevent hanging', async () => {
+    const stream = Readable.from(['drained']);
+    for await (const _ of stream) {
+      // drain
+    }
+    expect(stream.readableEnded).toBe(true);
+
+    await expect(adapter.consume(stream)).rejects.toThrow(AdapterError);
+    await expect(adapter.consume(stream)).rejects.toThrow(/already ended/);
+  });
+
+  it('rejects a destroyed stream immediately', async () => {
+    const stream = new Readable({ read() {} });
+    stream.destroy();
+    expect(stream.destroyed).toBe(true);
+
+    await expect(adapter.consume(stream)).rejects.toThrow(AdapterError);
+    await expect(adapter.consume(stream)).rejects.toThrow(/destroyed/);
+  });
+
+  it('rejects invalid resource type', async () => {
+    await expect((adapter as any).consume(null)).rejects.toThrow(AdapterError);
+    await expect((adapter as any).consume({})).rejects.toThrow(AdapterError);
+  });
+
+  it('enforces maxBytes limit and destroys stream when exceeded', async () => {
+    const boundedAdapter = new StreamAdapter({ maxBytes: 10 });
+    const largeStream = Readable.from(['Chunk 1 (8B)', 'Chunk 2 (8B)']);
+
+    await expect(boundedAdapter.consume(largeStream)).rejects.toThrow(AdapterError);
+    await expect(boundedAdapter.consume(Readable.from(['Chunk 1 (8B)', 'Chunk 2 (8B)']))).rejects.toThrow(
+      /exceeded maximum allowed size of 10 bytes/
+    );
+  });
+
+  it('allows streams within maxBytes limit', async () => {
+    const boundedAdapter = new StreamAdapter({ maxBytes: 50 });
+    const smallStream = Readable.from(['Small data']);
+    const result = await boundedAdapter.consume(smallStream);
+    expect(result.toString()).toBe('Small data');
+  });
+
+  it('throws when maxBytes option is invalid', () => {
+    expect(() => new StreamAdapter({ maxBytes: -1 })).toThrow(AdapterError);
+    expect(() => new StreamAdapter({ maxBytes: NaN })).toThrow(AdapterError);
+  });
 });

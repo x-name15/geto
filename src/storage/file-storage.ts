@@ -32,17 +32,18 @@ export class FileStorage implements IGetoStorage {
     }
   }
 
+  private static readonly SAFE_ID_PATTERN = /^[a-zA-Z0-9_-]{1,128}$/;
+
   /**
    * Resolves the secure absolute path for an entity ID, guarding against directory traversal.
    *
    * @param id - Entity identifier.
    */
   private getFilePath(id: string): string {
-    const sanitizedId = path.basename(id);
-    if (!sanitizedId || sanitizedId !== id || id.includes('/') || id.includes('\\')) {
+    if (!id || typeof id !== 'string' || !FileStorage.SAFE_ID_PATTERN.test(id)) {
       throw new StorageError(`Invalid entity id '${id}' detected for filesystem storage`);
     }
-    return path.join(this.baseDir, `${sanitizedId}.bin`);
+    return path.join(this.baseDir, `${id}.bin`);
   }
 
   /**

@@ -3,7 +3,7 @@ export { MemoryStorage } from './storage/memory-storage.js';
 export { FileStorage } from './storage/file-storage.js';
 export { BufferAdapter } from './adapters/buffer-adapter.js';
 export { JsonAdapter } from './adapters/json-adapter.js';
-export { StreamAdapter } from './adapters/stream-adapter.js';
+export { StreamAdapter, type IStreamAdapterOptions } from './adapters/stream-adapter.js';
 export { ProcessAdapter, type IProcessHandle } from './adapters/process-adapter.js';
 export { HttpReferenceAdapter, type IHttpReferenceAdapterOptions } from './adapters/http-reference-adapter.js';
 export { GetoError, EntityNotFoundError, EntityStateError, AdapterError, StorageError } from './errors/index.js';

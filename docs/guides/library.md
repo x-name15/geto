@@ -46,6 +46,7 @@ import type {
   IConsumeOptions,
   IGatewayOptions,
   IProcessHandle,
+  IStreamAdapterOptions,
   IHttpReferenceAdapterOptions,
 } from '@mrjacket/geto';
 ```

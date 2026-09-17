@@ -304,7 +304,8 @@ const parsed = await gateway.restore(entity, adapter);
 ### 3. `CAPTURE` — Replaying Single-Use Resources
 ```typescript
 import { Readable } from 'stream';
-const adapter = new StreamAdapter();
+// Optional maxBytes guards against unbounded stream memory exhaustion (DoS)
+const adapter = new StreamAdapter({ maxBytes: 50 * 1024 * 1024 });
 
 // Drains a single-use Node.js stream and stores it
 const entity = await gateway.consume(Readable.from(['Chunk 1', 'Chunk 2']), adapter);

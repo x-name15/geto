@@ -80,7 +80,8 @@ const adapter = new HttpReferenceAdapter({
 ### Security Enforcement Rules:
 1. **Validation at Ingestion:** If a URL's origin does not match the whitelist during `consume()`, it is rejected immediately with an `AdapterError`. It is never stored.
 2. **Defense Against Metadata Exfiltration:** Calls to cloud instance metadata services (e.g. `http://169.254.169.254` on AWS/GCP/Azure) and private localhost loops (`http://127.0.0.1`, `http://localhost`) are blocked unless explicitly and intentionally whitelisted.
-3. **Protocol Validation:** Only `http:` and `https:` protocols are accepted. File scheme URLs (`file://`) and data URIs (`data:`) are rejected.
+3. **Protocol Validation:** Only `http:` and `https:` protocols are accepted. File scheme URLs (`file://`), data URIs (`data:`), and JavaScript URIs (`javascript:`) are strictly rejected.
+4. **Open Redirect Defense:** Whenever `allowedOrigins` is specified, `HttpReferenceAdapter` defaults to `redirect: 'error'` to prevent attackers from using open redirects on trusted origins to pivot to internal metadata endpoints. Even if `redirect: 'follow'` is explicitly chosen, the adapter re-verifies the final redirection destination origin before reading or returning response bodies.
 
 ---
 

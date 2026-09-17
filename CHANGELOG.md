@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0] - 2026-09-17 — Security Hardening, DoS Defenses, and Concurrency Resilience
+
+### Security
+- **SSRF Open Redirect Defense (`HttpReferenceAdapter`)**: Enforced `redirect: 'error'` default policy whenever `allowedOrigins` is specified, preventing attackers from pivoting to internal metadata IP addresses (`169.254.169.254`) via open redirects. Added post-redirect origin destination verification even if `redirect: 'follow'` is explicitly chosen.
+- **Strict Protocol Validation (`HttpReferenceAdapter`)**: Exclusively permits `http:` and `https:` schemes, rejecting dangerous schemes (`file:`, `javascript:`, `data:`, `ftp:`) with typed `AdapterError`.
+- **Stream Memory Bounds / DoS Defense (`StreamAdapter`)**: Added `maxBytes` threshold option in `IStreamAdapterOptions` to abort and destroy streams that exceed memory budgets before causing Out-Of-Memory (OOM) process crashes.
+- **Path Traversal & Device Name Neutralization (`FileStorage`)**: Replaced permissive path sanitization with strict alphanumeric/UUID regex (`/^[a-zA-Z0-9_-]{1,128}$/`), completely blocking directory traversal (`..`), Windows reserved devices (`CON`, `PRN`, `AUX`, `NUL`), and NTFS Alternate Data Streams (`:stream`).
+
+### Fixed
+- **Deadlock Prevention (`StreamAdapter`)**: Streams that have already emitted `'end'` or been destroyed prior to consumption are immediately rejected with an `AdapterError` rather than leaving the Promise in an eternal unresolvable hang state.
+- **Race Condition in Lifecycle State (`GetoGateway`)**: Fixed a race condition where a concurrent `delete()` call while an asynchronous `adapter.release()` was in-flight would get overwritten with `RELEASED`. The gateway now validates that the entity is not `DELETED` before finalizing state transitions.
+
 ## [1.0.0] - 2026-09-17 — First stable milestone: All 5 semantics proven & complete developer manual
 
 ### Added

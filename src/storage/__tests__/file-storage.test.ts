@@ -61,4 +61,40 @@ describe('FileStorage', () => {
     const maliciousId = '../malicious-entry';
     await expect(storage.save(maliciousId, 'attack payload')).rejects.toThrow(StorageError);
   });
+
+  it('rejects dangerous identifiers (dots, colons, null bytes, special chars)', async () => {
+    const dangerousIds = [
+      '..',
+      '.',
+      'id/with/slash',
+      'id\\with\\backslash',
+      'id:stream',
+      'id\0null',
+      'id with spaces',
+      'id*wildcard',
+      'id?question',
+      '',
+    ];
+
+    for (const badId of dangerousIds) {
+      await expect(storage.save(badId, 'payload')).rejects.toThrow(StorageError);
+      await expect(storage.load(badId)).rejects.toThrow(StorageError);
+      await expect(storage.delete(badId)).rejects.toThrow(StorageError);
+      await expect(storage.exists(badId)).rejects.toThrow(StorageError);
+    }
+  });
+
+  it('accepts valid UUIDs and alphanumeric slugs', async () => {
+    const validIds = [
+      '4f8b92c8-1a2e-4d3b-8c7f-1a0e8d2c4b6a',
+      'entity_123',
+      'custom-slug-abc-XYZ-99',
+    ];
+
+    for (const validId of validIds) {
+      await expect(storage.save(validId, 'valid-data')).resolves.toBeUndefined();
+      expect(await storage.exists(validId)).toBe(true);
+      expect(await storage.load(validId)).toBe('valid-data');
+    }
+  });
 });

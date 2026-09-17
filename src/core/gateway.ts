@@ -174,7 +174,13 @@ export class GetoGateway {
       }
     }
 
-    const updatedEntity = canonical.withState(EEntityState.RELEASED).withUpdatedAt(new Date());
+    // Verify entity was not concurrently deleted while awaiting adapter.release()
+    const latest = this.entities.get(entity.id);
+    if (!latest || latest.state === EEntityState.DELETED) {
+      throw new EntityStateError(entity.id, EEntityState.DELETED, 'release');
+    }
+
+    const updatedEntity = latest.withState(EEntityState.RELEASED).withUpdatedAt(new Date());
     this.entities.set(entity.id, updatedEntity);
   }
 

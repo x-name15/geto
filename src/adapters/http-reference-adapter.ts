@@ -12,6 +12,12 @@ export interface IHttpReferenceAdapterOptions {
    */
   allowedOrigins?: string[];
   /**
+   * HTTP redirect handling policy.
+   * Defaults to `'error'` when `allowedOrigins` is specified to prevent open redirect SSRF bypasses.
+   * Defaults to `'follow'` when no origin restrictions are present.
+   */
+  redirect?: 'follow' | 'error' | 'manual';
+  /**
    * Optional custom fetch implementation, defaults to native global `fetch`.
    */
   fetchFn?: typeof fetch;
@@ -30,6 +36,7 @@ export class HttpReferenceAdapter implements IGetoAdapter<string, string> {
   readonly semantic = EConsumptionSemantic.REGISTER;
 
   private readonly allowedOrigins?: Set<string>;
+  private readonly redirect: 'follow' | 'error' | 'manual';
   private readonly fetchFn: typeof fetch;
 
   /**
@@ -39,14 +46,15 @@ export class HttpReferenceAdapter implements IGetoAdapter<string, string> {
    */
   constructor(options?: IHttpReferenceAdapterOptions) {
     this.allowedOrigins = options?.allowedOrigins ? new Set(options.allowedOrigins) : undefined;
+    this.redirect = options?.redirect ?? (this.allowedOrigins && this.allowedOrigins.size > 0 ? 'error' : 'follow');
     this.fetchFn = options?.fetchFn ?? globalThis.fetch;
   }
 
   /**
-   * Validates the provided URL against the allowed origins whitelist.
+   * Validates the provided URL against supported schemes and origin allowlists.
    *
    * @param url - URL string to validate.
-   * @throws {AdapterError} If the URL is malformed or its origin is not allowed.
+   * @throws {AdapterError} If the URL is malformed, scheme is unsupported, or its origin is not allowed.
    */
   private validateUrl(url: string): URL {
     let parsedUrl: URL;
@@ -54,6 +62,12 @@ export class HttpReferenceAdapter implements IGetoAdapter<string, string> {
       parsedUrl = new URL(url);
     } catch (error) {
       throw new AdapterError(`Invalid URL provided to HttpReferenceAdapter: '${url}'`, { cause: error });
+    }
+
+    if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+      throw new AdapterError(
+        `Unsupported protocol '${parsedUrl.protocol}' in URL '${url}'. Only 'http:' and 'https:' are supported.`
+      );
     }
 
     if (this.allowedOrigins && !this.allowedOrigins.has(parsedUrl.origin)) {
@@ -88,12 +102,21 @@ export class HttpReferenceAdapter implements IGetoAdapter<string, string> {
     this.validateUrl(data);
 
     try {
-      const response = await this.fetchFn(data);
+      const response = await this.fetchFn(data, { redirect: this.redirect });
+
+      // If fetch followed a redirect, verify that the final destination conforms to security policy
+      if (response.redirected && response.url) {
+        this.validateUrl(response.url);
+      }
+
       if (!response.ok) {
         throw new Error(`HTTP request failed with status ${response.status}: ${response.statusText}`);
       }
       return await response.text();
     } catch (error) {
+      if (error instanceof AdapterError) {
+        throw error;
+      }
       throw new AdapterError(`HttpReferenceAdapter failed to fetch resource from '${data}'`, { cause: error });
     }
   }

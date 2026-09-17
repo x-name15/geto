@@ -36,13 +36,21 @@ describe('HttpReferenceAdapter', () => {
     await adapter.consume(targetUrl);
 
     const result = await adapter.restore(targetUrl);
-    expect(mockFetch).toHaveBeenCalledWith(targetUrl);
+    expect(mockFetch).toHaveBeenCalledWith(targetUrl, { redirect: 'follow' });
     expect(result).toBe(expectedContent);
   });
 
-  it('enforces allowedOrigins whitelist policy', async () => {
+  it('enforces allowedOrigins whitelist policy and defaults redirect to error', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      redirected: false,
+      text: async () => 'ok',
+    });
+
     const adapter = new HttpReferenceAdapter({
       allowedOrigins: ['https://trusted.jujutsu.ac.jp'],
+      fetchFn: mockFetch,
     });
 
     // Allowed origin passes
@@ -50,6 +58,39 @@ describe('HttpReferenceAdapter', () => {
 
     // Untrusted origin throws AdapterError (SSRF mitigation)
     await expect(adapter.consume('https://malicious.domain.com/leak')).rejects.toThrow(AdapterError);
+
+    // Verify redirect: 'error' is passed to fetch by default when allowedOrigins is configured
+    await adapter.restore('https://trusted.jujutsu.ac.jp/scrolls');
+    expect(mockFetch).toHaveBeenCalledWith('https://trusted.jujutsu.ac.jp/scrolls', { redirect: 'error' });
+  });
+
+  it('rejects unsupported protocols (file, javascript, data, ftp)', async () => {
+    const adapter = new HttpReferenceAdapter();
+    await expect(adapter.consume('file:///etc/passwd')).rejects.toThrow(AdapterError);
+    await expect(adapter.consume('file:///etc/passwd')).rejects.toThrow(/Unsupported protocol 'file:'/);
+    await expect(adapter.consume('data:text/plain;base64,SGVsbG8=')).rejects.toThrow(AdapterError);
+    await expect(adapter.consume('javascript:alert(1)')).rejects.toThrow(AdapterError);
+    await expect(adapter.consume('ftp://ftp.example.com/file')).rejects.toThrow(AdapterError);
+  });
+
+  it('intercepts open redirect SSRF bypass when fetch redirected to untrusted origin', async () => {
+    const redirectingFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      redirected: true,
+      url: 'http://169.254.169.254/latest/meta-data',
+      text: async () => 'AWS_SECRET_KEY=leak',
+    });
+
+    const adapter = new HttpReferenceAdapter({
+      allowedOrigins: ['https://trusted.com'],
+      redirect: 'follow', // explicitly allowing follow
+      fetchFn: redirectingFetch,
+    });
+
+    // Even if follow was set, the final destination URL is re-validated against allowedOrigins!
+    await expect(adapter.restore('https://trusted.com/redirect')).rejects.toThrow(AdapterError);
+    await expect(adapter.restore('https://trusted.com/redirect')).rejects.toThrow(/not permitted/);
   });
 
   it('throws AdapterError on invalid URLs or HTTP errors', async () => {
