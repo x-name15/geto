@@ -1,0 +1,54 @@
+{
+  "name": "@mrjacket/geto",
+  "version": "0.1.0",
+  "description": "Resource lifecycle gateway",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "npm run build:js && npm run build:types",
+    "build:js": "tsup",
+    "build:types": "tsc --declaration --emitDeclarationOnly --outDir dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:package": "node scripts/package-smoke-test.mjs",
+    "prepublishOnly": "npm run build && npm run test"
+  },
+  "keywords": [
+    "resource-gateway",
+    "lifecycle",
+    "adapter",
+    "entity",
+    "buffer",
+    "node"
+  ],
+  "author": "x-name15",
+  "license": "GPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/x-name15/geto.git"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "devDependencies": {
+    "@types/node": "^26.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^7.0.0",
+    "vitest": "^5.0.0"
+  }
+}

@@ -1,0 +1,295 @@
+# geto
+
+> Consume anything. Use it later.
+
+---
+
+*"Exorcise and absorb. Exorcise and absorb. The world just keeps repeating that cycle."*
+*— Suguru Geto, Jujutsu Kaisen*
+
+---
+
+**geto** is an extensible resource consumption and entity lifecycle gateway for Node.js.
+
+You define what consuming a resource means.  
+geto handles everything that comes after.
+
+Buffer. File. Stream. Process. HTTP resource. Custom object.  
+If you can write an adapter for it, geto can manage it.
+
+---
+
+## How it works
+
+```
+Resource
+  │
+  ▼
+Adapter          ← you define this
+  │
+  ▼
+GetoGateway      ← geto owns this
+  ├── identity
+  ├── storage
+  ├── lifecycle
+  └── metadata
+  │
+  ▼
+Entity
+```
+
+The gateway does not know what a file is. It does not know what a stream is.  
+It knows how to manage what your adapter gives it.
+
+---
+
+## Installation
+
+```bash
+npm install @mrjacket/geto
+```
+
+**Requirements:** Node.js >= 22.12.0
+
+---
+
+## Quick start
+
+```typescript
+import { GetoGateway, MemoryStorage, BufferAdapter } from '@mrjacket/geto';
+
+const gateway = new GetoGateway({ storage: new MemoryStorage() });
+const adapter = new BufferAdapter();
+
+// Consume a resource — geto stores it and gives you an entity
+const entity = await gateway.consume(Buffer.from('Hello, geto'), adapter);
+
+console.log(entity.id);        // "3f2504e0-4f89-..."
+console.log(entity.adapterId); // "buffer"
+console.log(entity.state);     // "stored"
+
+// Restore the original resource from storage
+const buffer = await gateway.restore(entity, adapter);
+console.log(buffer.toString()); // "Hello, geto"
+```
+
+---
+
+## Gateway API
+
+### `consume(resource, adapter, options?)`
+
+Consumes a resource through the adapter and stores its representation.  
+Returns an `IEntity` descriptor. The entity is the managed handle — not the data itself.
+
+```typescript
+const entity = await gateway.consume(resource, adapter);
+const entity = await gateway.consume(resource, adapter, {
+  metadata: { label: 'my-resource' }
+});
+```
+
+### `get(id)`
+
+Retrieves the entity descriptor by ID. Throws `EntityNotFoundError` if not found,  
+`EntityStateError` if the entity has been deleted.
+
+```typescript
+const entity = await gateway.get('3f2504e0-...');
+```
+
+### `restore(entity, adapter)`
+
+Loads the stored representation and returns the original resource type.  
+Does not change the entity's state — an entity can be restored multiple times.
+
+```typescript
+const resource = await gateway.restore(entity, adapter);
+```
+
+### `release(entity, adapter)`
+
+Calls `adapter.release()` on the resource if the adapter defines it.  
+Marks the entity as `RELEASED`. The entity remains in storage.
+
+```typescript
+await gateway.release(entity, adapter);
+```
+
+> **`release` ≠ `delete`**  
+> Release is a resource lifecycle operation (close a stream, detach a process).  
+> Delete is a storage operation (remove the entity entirely).
+
+### `delete(id)`
+
+Removes the entity's representation from storage and marks it `DELETED`.  
+`DELETED` is a terminal state — no further operations are allowed.
+
+```typescript
+await gateway.delete(entity.id);
+```
+
+### `exists(id)`
+
+Returns `true` if the entity exists and has not been deleted.
+
+```typescript
+const alive = await gateway.exists(entity.id);
+```
+
+### `inspect(id)`
+
+Returns the entity's metadata.
+
+```typescript
+const metadata = await gateway.inspect(entity.id);
+// { id, adapterId, createdAt, updatedAt, custom: { ... } }
+```
+
+---
+
+## Entity lifecycle
+
+```
+consume()
+    │
+    ▼
+ STORED ──────────────────────── restore() [no state change, repeatable]
+    │
+    ├── release() ──▶ RELEASED ── restore() [adapter-defined]
+    │
+    └── delete()  ──▶ DELETED  ── [terminal — all further operations throw]
+```
+
+---
+
+## Adapters
+
+Adapters define the consumption semantic. They know how to turn a resource into  
+a storable representation, and how to turn it back.
+
+```typescript
+interface IGetoAdapter<T, R> {
+  readonly adapterId: string;
+  readonly semantic: EConsumptionSemantic | EConsumptionSemantic[];
+  consume(resource: T): Promise<R>;
+  restore(data: R): Promise<T>;
+  release?(resource: T): Promise<void>;
+}
+```
+
+### Built-in adapters
+
+| Adapter | Semantic | Description |
+|---|---|---|
+| `BufferAdapter` | `COPY` | Copies a Buffer into an independent representation |
+
+### Custom adapters
+
+```typescript
+import { IGetoAdapter, EConsumptionSemantic } from '@mrjacket/geto';
+
+class MyAdapter implements IGetoAdapter<MyResource, MyStoredForm> {
+  readonly adapterId = 'my-resource';
+  readonly semantic  = EConsumptionSemantic.SERIALIZE;
+
+  async consume(resource: MyResource): Promise<MyStoredForm> {
+    return { data: resource.serialize() };
+  }
+
+  async restore(stored: MyStoredForm): Promise<MyResource> {
+    return MyResource.from(stored.data);
+  }
+}
+
+const entity = await gateway.consume(resource, new MyAdapter());
+```
+
+geto does not need to know anything about `MyResource`.
+
+---
+
+## Storage
+
+Storage backends persist the representations. Swapping storage does not change  
+any other part of your code.
+
+```typescript
+interface IGetoStorage {
+  save(id: string, data: unknown): Promise<void>;
+  load(id: string): Promise<unknown>;
+  delete(id: string): Promise<void>;
+  exists(id: string): Promise<boolean>;
+}
+```
+
+### Built-in storage
+
+| Storage | Description |
+|---|---|
+| `MemoryStorage` | In-memory storage. No persistence across restarts. |
+
+### Custom storage
+
+```typescript
+import { IGetoStorage } from '@mrjacket/geto';
+
+class RedisStorage implements IGetoStorage {
+  async save(id: string, data: unknown): Promise<void> { /* ... */ }
+  async load(id: string): Promise<unknown>              { /* ... */ }
+  async delete(id: string): Promise<void>               { /* ... */ }
+  async exists(id: string): Promise<boolean>            { /* ... */ }
+}
+
+const gateway = new GetoGateway({ storage: new RedisStorage() });
+```
+
+---
+
+## Five consumption semantics
+
+Every adapter declares which consumption semantic it implements via `adapter.semantic`.  
+This is observable metadata — the gateway does not behave differently based on it.
+
+| Semantic | Meaning |
+|---|---|
+| `COPY` | Create an independent copy of the resource |
+| `CAPTURE` | Temporarily take ownership/control of a resource's lifecycle |
+| `SERIALIZE` | Transform a resource into a persistable representation |
+| `WRAP` | Manage a live resource without fully consuming it |
+| `REGISTER` | Consume a reference or locator; resolve the resource on restore |
+
+---
+
+## Errors
+
+All errors extend `GetoError` and preserve the original `cause` where available.
+
+| Error | When |
+|---|---|
+| `GetoError` | Base class |
+| `EntityNotFoundError` | Entity ID does not exist |
+| `EntityStateError` | Operation is invalid for the entity's current state |
+| `AdapterError` | Adapter threw during consume / restore / release |
+| `StorageError` | Storage threw during save / load / delete / exists |
+
+```typescript
+import { EntityNotFoundError, EntityStateError } from '@mrjacket/geto';
+
+try {
+  await gateway.restore(entity, adapter);
+} catch (err) {
+  if (err instanceof EntityStateError) {
+    console.error('Entity is in an invalid state:', err.message);
+  }
+}
+```
+
+---
+
+## License
+
+This project is licensed under the **GPL-3.0 License**. See the [LICENSE](./LICENSE) file for details.
+
+### Credits
+**Author:** Mr Jacket / Felix Manrique / x-name15 (we are all the same person)

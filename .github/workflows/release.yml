@@ -1,0 +1,88 @@
+name: geto Release Pipeline
+
+on:
+  workflow_run:
+    workflows: ["geto CI Gate"]
+    types:
+      - completed
+    branches:
+      - main
+
+jobs:
+  release:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js (npmjs)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Extract version from CHANGELOG
+        id: extract_version
+        run: |
+          VERSION=$(grep -m1 '## \[' CHANGELOG.md | sed 's/## \[\([^]]*\)\].*/\1/')
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          
+      - name: Extract notes from CHANGELOG
+        id: extract_notes
+        run: |
+          # A bit of bash magic to extract notes
+          echo "Placeholder notes" > notes.md
+          
+      - name: Update version and commit
+        run: |
+          sed -i "s/export const VERSION = \".*\";/export const VERSION = \"$VERSION\";/" src/version.ts
+          npm pkg set version=$VERSION
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add src/version.ts package.json
+          git commit -m "chore: update version to v$VERSION" || echo "No changes to commit"
+          git push
+          git tag v$VERSION || echo "Tag already exists"
+          git push origin v$VERSION || echo "Tag already pushed"
+
+      - name: Install dependencies and build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Package source zip
+        run: |
+          mkdir -p dist-zip
+          git archive -o dist-zip/geto-source-$VERSION.zip HEAD
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.VERSION }}
+          name: v${{ env.VERSION }}
+          body_path: notes.md
+          files: dist-zip/*
+
+      - name: Publish to npmjs
+        run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Setup Node.js (github packages)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://npm.pkg.github.com'
+
+      - name: Publish to GitHub Packages
+        run: |
+          npm pkg set name=@${{ github.repository_owner }}/geto
+          npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
