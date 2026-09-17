@@ -1,12 +1,22 @@
 import {
   GetoGateway,
   MemoryStorage,
+  FileStorage,
   BufferAdapter,
+  JsonAdapter,
   GetoError,
   EntityNotFoundError
 } from '../dist/index.js';
 
-if (!GetoGateway || !MemoryStorage || !BufferAdapter || !GetoError || !EntityNotFoundError) {
+if (
+  !GetoGateway ||
+  !MemoryStorage ||
+  !FileStorage ||
+  !BufferAdapter ||
+  !JsonAdapter ||
+  !GetoError ||
+  !EntityNotFoundError
+) {
   throw new Error("Missing required exports from package.");
 }
 

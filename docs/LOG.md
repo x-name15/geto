@@ -1,6 +1,16 @@
 # Engineering Log
 
-## 2026-09-17: Stale entity snapshot bug — first test run
+## 2026-09-17: Milestone 0.2.0 — SERIALIZE Semantic & Storage Swappability
+
+**Context:** Prove that geto supports transformations where the stored representation $R$ is of a different type than the input resource $T$ ($R \neq T$), and prove storage swappability using a disk-based backend.
+
+**Implementation details:**
+- `JsonAdapter<T>`: transforms arbitrary objects into `string` representations via JSON serialization.
+- `FileStorage`: persists representations directly onto the local filesystem in `.bin` files under a designated root directory.
+- **Security precaution:** `FileStorage` sanitizes entity IDs to protect against path traversal attempts (`../`), raising typed `StorageError`.
+- **Core verification:** The core `GetoGateway` coordinated `FileStorage` and `JsonAdapter` without modifying a single line of the core lifecycle orchestration.
+
+---
 
 **Found during:** first `vitest run` after initial build. 2 of 36 tests failed.
 

@@ -190,6 +190,7 @@ interface IGetoAdapter<T, R> {
 | Adapter | Semantic | Description |
 |---|---|---|
 | `BufferAdapter` | `COPY` | Copies a Buffer into an independent representation |
+| `JsonAdapter` | `SERIALIZE` | Serializes arbitrary JavaScript objects/values to JSON strings |
 
 ### Custom adapters
 
@@ -234,7 +235,8 @@ interface IGetoStorage {
 
 | Storage | Description |
 |---|---|
-| `MemoryStorage` | In-memory storage. No persistence across restarts. |
+| `MemoryStorage` | In-memory transient storage using JavaScript `Map`. No persistence across restarts. |
+| `FileStorage` | Persistent local filesystem storage in a designated directory. |
 
 ### Custom storage
 

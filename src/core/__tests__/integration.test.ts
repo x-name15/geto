@@ -86,4 +86,39 @@ describe('Integration Tests', () => {
     
     expect(restored).toBe('aaaa'); // length of 'test' is 4
   });
+
+  it('SERIALIZE semantic: JsonAdapter + FileStorage end-to-end persistence', async () => {
+    const fs = await import('fs/promises');
+    const path = await import('path');
+    const os = await import('os');
+    const { FileStorage } = await import('../../storage/file-storage.js');
+    const { JsonAdapter } = await import('../../adapters/json-adapter.js');
+
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'geto-serialize-test-'));
+    try {
+      const fileStorage = new FileStorage(tempDir);
+      const gateway = new GetoGateway({ storage: fileStorage });
+      const jsonAdapter = new JsonAdapter<{ id: number; title: string; tags: string[] }>();
+
+      const input = { id: 42, title: 'Cursed Object', tags: ['special-grade', 'sealed'] };
+
+      // Consume transforms Object (T) -> string (R), and stores on disk
+      const entity = await gateway.consume(input, jsonAdapter, {
+        metadata: { category: 'curse' }
+      });
+
+      expect(entity.adapterId).toBe('json');
+      expect(await fileStorage.exists(entity.id)).toBe(true);
+
+      // Restore loads string from disk and deserializes back into Object (T)
+      const restored = await gateway.restore(entity, jsonAdapter);
+      expect(restored).toEqual(input);
+
+      // Verify clean deletion from disk
+      await gateway.delete(entity.id);
+      expect(await fileStorage.exists(entity.id)).toBe(false);
+    } finally {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    }
+  });
 });
