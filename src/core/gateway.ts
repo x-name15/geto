@@ -54,6 +54,10 @@ export class GetoGateway {
    * ```
    */
   async consume<T, R>(resource: T, adapter: IGetoAdapter<T, R>, options?: IConsumeOptions): Promise<IEntity> {
+    if (!adapter || typeof adapter.consume !== 'function') {
+      throw new AdapterError('A valid adapter implementing consume() is required');
+    }
+
     const id = crypto.randomUUID();
     let representation: R;
 
@@ -66,6 +70,14 @@ export class GetoGateway {
     try {
       await this.storage.save(id, representation);
     } catch (error) {
+      // Rollback: if storage fails, ensure acquired resource handles are freed immediately
+      if (typeof adapter.release === 'function') {
+        try {
+          await adapter.release(resource);
+        } catch {
+          // Suppress secondary release failure to preserve the original StorageError cause
+        }
+      }
       throw new StorageError(`Failed to save representation for id '${id}'`, { cause: error });
     }
 
@@ -103,10 +115,17 @@ export class GetoGateway {
    *
    * @throws {EntityNotFoundError} If the entity does not exist in the gateway.
    * @throws {EntityStateError} If the entity is in a DELETED state.
+   * @throws {AdapterError} If the provided adapter does not match the originating adapter or fails to restore.
    * @throws {StorageError} If the storage backend fails to load the representation.
-   * @throws {AdapterError} If the adapter fails to restore the resource.
    */
   async restore<T, R>(entity: IEntity, adapter: IGetoAdapter<T, R>): Promise<T> {
+    if (!entity || !entity.id) {
+      throw new EntityNotFoundError(String(entity?.id ?? 'undefined'));
+    }
+    if (!adapter || typeof adapter.restore !== 'function') {
+      throw new AdapterError('A valid adapter implementing restore() is required');
+    }
+
     // Always read canonical state from internal Map — caller's entity object may be a stale snapshot.
     const canonical = this.entities.get(entity.id);
     if (!canonical) {
@@ -114,6 +133,12 @@ export class GetoGateway {
     }
     if (canonical.state === EEntityState.DELETED) {
       throw new EntityStateError(entity.id, canonical.state, 'restore');
+    }
+
+    if (adapter.adapterId !== canonical.adapterId) {
+      throw new AdapterError(
+        `Adapter mismatch: entity '${entity.id}' was created with adapter '${canonical.adapterId}', but adapter '${adapter.adapterId}' was provided`
+      );
     }
 
     let representation: unknown;
@@ -139,10 +164,17 @@ export class GetoGateway {
    *
    * @throws {EntityNotFoundError} If the entity does not exist in the gateway.
    * @throws {EntityStateError} If the entity is in a DELETED state.
+   * @throws {AdapterError} If the provided adapter does not match the originating adapter or fails during release.
    * @throws {StorageError} If loading from storage fails.
-   * @throws {AdapterError} If the adapter fails during resource restoration or release.
    */
   async release<T, R>(entity: IEntity, adapter: IGetoAdapter<T, R>): Promise<void> {
+    if (!entity || !entity.id) {
+      throw new EntityNotFoundError(String(entity?.id ?? 'undefined'));
+    }
+    if (!adapter) {
+      throw new AdapterError('A valid adapter is required for release()');
+    }
+
     // Always read canonical state from internal Map — caller's entity object may be a stale snapshot.
     const canonical = this.entities.get(entity.id);
     if (!canonical) {
@@ -150,6 +182,12 @@ export class GetoGateway {
     }
     if (canonical.state === EEntityState.DELETED) {
       throw new EntityStateError(entity.id, canonical.state, 'release');
+    }
+
+    if (adapter.adapterId !== canonical.adapterId) {
+      throw new AdapterError(
+        `Adapter mismatch: entity '${entity.id}' was created with adapter '${canonical.adapterId}', but adapter '${adapter.adapterId}' was provided`
+      );
     }
 
     if (adapter.release) {

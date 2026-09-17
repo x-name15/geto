@@ -76,4 +76,24 @@ describe('ProcessAdapter', () => {
 
     expect(handle.isAlive()).toBe(false);
   });
+
+  it('handles ESRCH error gracefully during release without throwing', async () => {
+    const fakeProc = {
+      exitCode: null,
+      killed: false,
+      pid: 12345,
+      kill: () => {
+        const err = new Error('Process not found');
+        (err as any).code = 'ESRCH';
+        throw err;
+      },
+    } as unknown as ChildProcess;
+
+    await expect(adapter.release(fakeProc)).resolves.toBeUndefined();
+  });
+
+  it('rejects invalid handle in restore', async () => {
+    await expect((adapter as any).restore(null)).rejects.toThrow(AdapterError);
+    await expect((adapter as any).restore({})).rejects.toThrow(AdapterError);
+  });
 });

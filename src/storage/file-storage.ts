@@ -59,6 +59,7 @@ export class FileStorage implements IGetoStorage {
   async save(id: string, data: unknown): Promise<void> {
     await this.ensureBaseDir();
     const filePath = this.getFilePath(id);
+    const tempFilePath = `${filePath}.tmp.${Date.now()}.${Math.random().toString(36).slice(2, 8)}`;
 
     try {
       let envelope: { type: 'buffer' | 'string' | 'json'; payload: string };
@@ -71,8 +72,15 @@ export class FileStorage implements IGetoStorage {
         envelope = { type: 'json', payload: JSON.stringify(data) };
       }
 
-      await fs.writeFile(filePath, JSON.stringify(envelope), 'utf-8');
+      // Atomic write: write to isolated temporary file, then rename atomically
+      await fs.writeFile(tempFilePath, JSON.stringify(envelope), 'utf-8');
+      await fs.rename(tempFilePath, filePath);
     } catch (error) {
+      try {
+        await fs.unlink(tempFilePath);
+      } catch {
+        // Ignore temp file cleanup failure
+      }
       throw new StorageError(`FileStorage failed to save representation for id '${id}'`, { cause: error });
     }
   }

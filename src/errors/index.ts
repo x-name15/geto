@@ -24,12 +24,16 @@ export class GetoError extends Error {
  * Thrown when an entity ID is not found in the gateway or storage backend.
  */
 export class EntityNotFoundError extends GetoError {
+  /** The unique identifier of the entity that was not found. */
+  readonly id: string;
+
   /**
    * @param id - The ID that could not be located.
    * @param options - Error options.
    */
   constructor(id: string, options?: { cause?: unknown }) {
     super(`Entity '${id}' not found`, options);
+    this.id = id;
   }
 }
 
@@ -37,6 +41,13 @@ export class EntityNotFoundError extends GetoError {
  * Thrown when an operation is invalid for an entity's current lifecycle state.
  */
 export class EntityStateError extends GetoError {
+  /** Entity identifier. */
+  readonly id: string;
+  /** The lifecycle state that caused the operation to be rejected. */
+  readonly state: EEntityState;
+  /** The name of the operation that was attempted. */
+  readonly operation: string;
+
   /**
    * @param id - Entity identifier.
    * @param state - The entity state that prohibited the operation.
@@ -45,6 +56,9 @@ export class EntityStateError extends GetoError {
    */
   constructor(id: string, state: EEntityState, operation: string, options?: { cause?: unknown }) {
     super(`Cannot perform '${operation}' on entity '${id}' in state '${state}'`, options);
+    this.id = id;
+    this.state = state;
+    this.operation = operation;
   }
 }
 

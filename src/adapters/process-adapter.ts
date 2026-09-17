@@ -81,6 +81,9 @@ export class ProcessAdapter implements IGetoAdapter<ChildProcess, IProcessHandle
    * @returns A promise resolving to the underlying ChildProcess.
    */
   async restore(data: IProcessHandle): Promise<ChildProcess> {
+    if (!data || !data.process) {
+      throw new AdapterError('ProcessAdapter requires an active IProcessHandle representation to restore');
+    }
     return data.process;
   }
 
@@ -91,7 +94,15 @@ export class ProcessAdapter implements IGetoAdapter<ChildProcess, IProcessHandle
    */
   async release(resource: ChildProcess): Promise<void> {
     if (resource.exitCode === null && !resource.killed) {
-      resource.kill('SIGTERM');
+      try {
+        resource.kill('SIGTERM');
+      } catch (error: unknown) {
+        // If process was already reaped by the operating system kernel, ESRCH is expected and safe
+        if (typeof error === 'object' && error !== null && 'code' in error && (error as { code: string }).code === 'ESRCH') {
+          return;
+        }
+        throw new AdapterError(`Failed to terminate process ${resource.pid}`, { cause: error });
+      }
     }
   }
 }

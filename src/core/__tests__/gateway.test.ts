@@ -83,12 +83,25 @@ describe('GetoGateway', () => {
     it('wraps adapter errors as AdapterError', async () => {
       const entity = await gateway.consume(Buffer.from('test'), adapter);
       const badAdapter: IGetoAdapter<any, any> = {
-        adapterId: 'bad',
+        adapterId: 'buffer',
         semantic: EConsumptionSemantic.COPY,
         consume: async () => 'test',
         restore: async () => { throw new Error('adapter fail'); }
       };
       await expect(gateway.restore(entity, badAdapter)).rejects.toThrow(AdapterError);
+    });
+
+    it('rejects restore with AdapterError when adapterId mismatches originating adapter', async () => {
+      const entity = await gateway.consume(Buffer.from('test'), adapter);
+      const mismatchedAdapter: IGetoAdapter<any, any> = {
+        adapterId: 'different-adapter',
+        semantic: EConsumptionSemantic.COPY,
+        consume: async (b) => b,
+        restore: async (b) => b,
+      };
+
+      await expect(gateway.restore(entity, mismatchedAdapter)).rejects.toThrow(AdapterError);
+      await expect(gateway.restore(entity, mismatchedAdapter)).rejects.toThrow(/Adapter mismatch/);
     });
 
     it('wraps storage errors as StorageError', async () => {
@@ -130,7 +143,7 @@ describe('GetoGateway', () => {
       });
 
       const slowReleasableAdapter: IGetoAdapter<Buffer, Buffer> = {
-        adapterId: 'slow-buffer',
+        adapterId: 'buffer',
         semantic: EConsumptionSemantic.WRAP,
         consume: async (b) => b,
         restore: async (b) => b,
@@ -209,5 +222,84 @@ describe('GetoGateway', () => {
       ids.add(entity.id);
     }
     expect(ids.size).toBe(100);
+  });
+
+  describe('defensive hardening (1.1.1)', () => {
+    it('rolls back and invokes adapter.release when storage.save fails during consume', async () => {
+      let released = false;
+      const releasableAdapter: IGetoAdapter<string, string> = {
+        adapterId: 'releasable-test',
+        semantic: EConsumptionSemantic.WRAP,
+        consume: async (res) => res,
+        restore: async (data) => data,
+        release: async () => {
+          released = true;
+        },
+      };
+
+      vi.spyOn(storage, 'save').mockRejectedValueOnce(new Error('Disk write failed'));
+
+      await expect(gateway.consume('resource', releasableAdapter)).rejects.toThrow(StorageError);
+      // Critical check: release() was triggered to prevent handle leak
+      expect(released).toBe(true);
+    });
+
+    it('rejects release with AdapterError when adapterId mismatches', async () => {
+      const entity = await gateway.consume(Buffer.from('test'), adapter);
+      const wrongAdapter: IGetoAdapter<any, any> = {
+        adapterId: 'wrong-id',
+        semantic: EConsumptionSemantic.COPY,
+        consume: async (b) => b,
+        restore: async (b) => b,
+      };
+
+      await expect(gateway.release(entity, wrongAdapter)).rejects.toThrow(AdapterError);
+      await expect(gateway.release(entity, wrongAdapter)).rejects.toThrow(/Adapter mismatch/);
+    });
+
+    it('exposes typed properties on EntityNotFoundError and EntityStateError', async () => {
+      const missingId = '00000000-0000-0000-0000-000000000000';
+      try {
+        await gateway.get(missingId);
+        expect.unreachable();
+      } catch (err) {
+        expect(err).toBeInstanceOf(EntityNotFoundError);
+        expect((err as EntityNotFoundError).id).toBe(missingId);
+      }
+
+      const entity = await gateway.consume(Buffer.from('test'), adapter);
+      await gateway.delete(entity.id);
+
+      try {
+        await gateway.get(entity.id);
+        expect.unreachable();
+      } catch (err) {
+        expect(err).toBeInstanceOf(EntityStateError);
+        const stateErr = err as EntityStateError;
+        expect(stateErr.id).toBe(entity.id);
+        expect(stateErr.state).toBe(EEntityState.DELETED);
+        expect(stateErr.operation).toBe('get');
+      }
+    });
+
+    it('guarantees immutability of entity metadata and prevents external mutations', async () => {
+      const externalMeta: Record<string, unknown> = { role: 'analyst', level: 1 };
+      const entity = await gateway.consume(Buffer.from('test'), adapter, { metadata: externalMeta });
+
+      // Mutating external source object should NOT mutate internal entity metadata
+      externalMeta.role = 'superuser';
+      expect(entity.metadata.custom?.role).toBe('analyst');
+
+      // Mutating entity custom metadata directly should fail (frozen)
+      expect(() => {
+        (entity.metadata.custom as any).role = 'hacked';
+      }).toThrow();
+
+      // Mutating Date objects should not alter the entity's stored dates
+      const originalTime = entity.createdAt.getTime();
+      entity.createdAt.setFullYear(1990);
+      const inspected = await gateway.inspect(entity.id);
+      expect(inspected.createdAt.getTime()).toBe(originalTime);
+    });
   });
 });

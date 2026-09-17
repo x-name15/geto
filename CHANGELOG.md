@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.1] - 2026-09-17 — Failsafe Rollbacks, Type Safety & Immutability Hardening
+
+### Security & Reliability
+- **CWE-404 / CWE-775 Resource Leak Rollback (`GetoGateway`)**: If `storage.save()` fails during `consume()`, `gateway.consume()` now automatically triggers a defensive rollback by calling `adapter.release(resource)` before propagating the `StorageError`. This guarantees that unpersisted processes, sockets, or open handles are never leaked as orphaned zombies.
+- **CWE-843 Adapter Type Confusion Defense (`GetoGateway`)**: `gateway.restore()` and `gateway.release()` now verify that the provided adapter's `adapterId` strictly matches the originating `canonical.adapterId`. Attempting to restore an entity with an incompatible adapter immediately throws `AdapterError`.
+- **CWE-471 / CWE-374 Deep Immutability (`GetoEntity`)**: Implemented deep freezing and defensive cloning for `entity.metadata.custom` and `Date` properties (`createdAt`, `updatedAt`), preventing external caller mutations from altering internal entity states.
+- **CWE-362 Atomic Disk Writes (`FileStorage`)**: `FileStorage.save()` now uses an atomic temporary file write and atomic rename pattern (`fs.rename`), ensuring that interrupted writes, abrupt power loss, or process crashes never leave partially written or corrupted `.bin` files on disk.
+- **ESRCH Signal Tolerance (`ProcessAdapter`)**: `ProcessAdapter.release()` safely catches and ignores `ESRCH` (process already reaped by the OS kernel) instead of throwing an unhandled `AdapterError`.
+
+### Developer Experience
+- **Typed Error Properties**: `EntityNotFoundError` now exposes public property `readonly id: string`, and `EntityStateError` exposes `readonly id: string`, `readonly state: EEntityState`, and `readonly operation: string`.
+
 ## [1.1.0] - 2026-09-17 — Security Hardening, DoS Defenses, and Concurrency Resilience
 
 ### Security
