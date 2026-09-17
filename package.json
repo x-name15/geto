@@ -16,7 +16,7 @@
   "scripts": {
     "build": "npm run build:js && npm run build:types",
     "build:js": "tsup",
-    "build:types": "tsc --declaration --emitDeclarationOnly --outDir dist",
+    "build:types": "tsc --declaration --emitDeclarationOnly --outDir dist -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
