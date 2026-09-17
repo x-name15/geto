@@ -1,5 +1,12 @@
 # geto
 
+[![npm version](https://img.shields.io/npm/v/@mrjacket/geto.svg?color=success)](https://www.npmjs.com/package/@mrjacket/geto)
+[![npm downloads](https://img.shields.io/npm/dm/@mrjacket/geto.svg)](https://www.npmjs.com/package/@mrjacket/geto)
+[![node](https://img.shields.io/node/v/@mrjacket/geto.svg)](https://www.npmjs.com/package/@mrjacket/geto)
+[![ci](https://github.com/x-name15/geto/actions/workflows/ci.yml/badge.svg)](https://github.com/x-name15/geto/actions/workflows/ci.yml)
+[![types](https://img.shields.io/npm/types/@mrjacket/geto.svg)](https://www.npmjs.com/package/@mrjacket/geto)
+[![license](https://img.shields.io/npm/l/@mrjacket/geto.svg)](https://github.com/x-name15/geto/blob/main/LICENSE)
+
 > Consume anything. Use it later.
 
 ---
