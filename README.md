@@ -66,10 +66,13 @@ Explore the full documentation portal in the [`docs/`](./docs/README.md) directo
 
 - [Getting Started](./docs/guides/getting-started.md)
 - [Library API Reference](./docs/guides/library.md)
+- [Production Recipes & Patterns](./docs/guides/recipes.md)
 - [Adapters & The 5 Semantics](./docs/adapters/overview.md)
 - [Storage Providers Guide](./docs/storage/overview.md)
-- [CI/CD & DevOps](./docs/guides/ci-cd.md)
 - [Developer Manual](./docs/guides/DEVELOPER_GUIDE.md)
+- [CI/CD & DevOps](./docs/guides/ci-cd.md)
+- [Runnable Examples Suite](./examples/README.md)
+
 
 ---
 

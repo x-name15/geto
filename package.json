@@ -21,6 +21,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:package": "node scripts/package-smoke-test.mjs",
+    "test:examples": "node scripts/run-examples.mjs",
     "prepublishOnly": "npm run build && npm run test"
   },
   "keywords": [

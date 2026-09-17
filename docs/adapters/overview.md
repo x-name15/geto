@@ -73,38 +73,44 @@ import * as fs from 'fs/promises';
 import * as crypto from 'crypto';
 import { IGetoAdapter, EConsumptionSemantic, AdapterError } from '@mrjacket/geto';
 
+interface IFileResource {
+  path: string;
+  bytes: Buffer;
+}
+
 interface IFileSnapshot {
   path: string;
   hash: string;
   bytes: Buffer;
 }
 
-export class FileSnapshotAdapter implements IGetoAdapter<string, IFileSnapshot> {
+export class FileSnapshotAdapter implements IGetoAdapter<IFileResource, IFileSnapshot> {
   readonly adapterId = 'file-snapshot';
   readonly semantic = EConsumptionSemantic.CAPTURE;
 
-  async consume(filePath: string): Promise<IFileSnapshot> {
+  async consume(resource: IFileResource): Promise<IFileSnapshot> {
     try {
-      const bytes = await fs.readFile(filePath);
-      const hash = crypto.createHash('sha256').update(bytes).digest('hex');
-
+      const hash = crypto.createHash('sha256').update(resource.bytes).digest('hex');
       return {
-        path: filePath,
+        path: resource.path,
         hash,
-        bytes,
+        bytes: Buffer.from(resource.bytes),
       };
     } catch (error) {
-      throw new AdapterError(`Failed to read and snapshot file at '${filePath}'`, { cause: error });
+      throw new AdapterError(`Failed to snapshot file at '${resource.path}'`, { cause: error });
     }
   }
 
-  async restore(data: IFileSnapshot): Promise<Buffer> {
+  async restore(data: IFileSnapshot): Promise<IFileResource> {
     // Verifies data integrity upon restoration
     const currentHash = crypto.createHash('sha256').update(data.bytes).digest('hex');
     if (currentHash !== data.hash) {
       throw new AdapterError(`File integrity check failed for '${data.path}'`);
     }
-    return data.bytes;
+    return {
+      path: data.path,
+      bytes: Buffer.from(data.bytes),
+    };
   }
 }
 ```
@@ -112,7 +118,11 @@ export class FileSnapshotAdapter implements IGetoAdapter<string, IFileSnapshot> 
 ### Usage:
 ```typescript
 const adapter = new FileSnapshotAdapter();
-const entity = await gateway.consume('./report.pdf', adapter);
+const entity = await gateway.consume({
+  path: './report.pdf',
+  bytes: await fs.readFile('./report.pdf')
+}, adapter);
 
-const fileBytes = await gateway.restore(entity, adapter);
+const fileResource = await gateway.restore(entity, adapter);
+console.log(`Restored ${fileResource.path} (${fileResource.bytes.length} bytes)`);
 ```

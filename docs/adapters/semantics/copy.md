@@ -1,52 +1,109 @@
-# `COPY` Semantic Reference
+# `COPY` Semantic Specification
 
-> **Adapter:** `BufferAdapter`  
-> **Source:** `Buffer`  
-> **Representation:** `Buffer`  
-> **Lifecycle Release:** Not required (independent memory clone)
+| Property | Details |
+|---|---|
+| **Semantic Identifier** | `EConsumptionSemantic.COPY` (`'copy'`) |
+| **Built-in Implementation** | `BufferAdapter` |
+| **Source Type ($T$)** | `Buffer` |
+| **Representation Type ($R$)** | `Buffer` |
+| **Ownership Model** | Value Isolation (Caller retains original; Gateway stores independent clone) |
+| **Release Hook** | None required (No OS handles or active descriptors) |
 
 ---
 
-## Concept
+## 1. Mental Model & Problem Statement
 
-The **`COPY`** semantic creates an isolated, detached representation of the input resource. 
+In JavaScript and Node.js runtimes, `Buffer` instances are mutable references backed by memory outside the V8 heap (`ArrayBuffer`). Passing a buffer around without cloning introduces subtle, catastrophic bugs:
+- A caller might zero-out a buffer after sending it (`buf.fill(0)`).
+- A socket pool or HTTP parser might reuse the same underlying `Buffer` chunk for the next request.
+- Concurrent workers may mutate byte offsets simultaneously.
 
-Modifying the original resource after consumption has **zero effect** on the stored entity. Similarly, modifying a restored resource does not mutate the gateway's stored data.
+The **`COPY`** semantic enforces **strict value isolation**. When a resource is consumed under the `COPY` semantic:
+1. An independent, detached copy of the byte array is allocated.
+2. The caller retains complete freedom to mutate, reuse, or destroy the original instance.
+3. The stored representation is completely immune to external side effects.
+4. `restore()` returns another fresh clone, ensuring that consumers of the restored entity cannot mutate the persisted storage.
 
+---
+
+## 2. Sequence Diagram
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Caller
+    participant Gateway as GetoGateway
+    participant Adapter as BufferAdapter (COPY)
+    participant Storage as IGetoStorage
+
+    Caller->>Gateway: consume(sourceBuffer, adapter)
+    Gateway->>Adapter: consume(sourceBuffer)
+    Note over Adapter: Buffer.from(sourceBuffer)<br/>Allocates isolated clone
+    Adapter-->>Gateway: clonedBuffer
+    Gateway->>Storage: save(uuid, clonedBuffer)
+    Gateway-->>Caller: IEntity (State: STORED)
+
+    Note over Caller: Caller mutates or zeroes original sourceBuffer
+
+    Caller->>Gateway: restore(entity, adapter)
+    Gateway->>Storage: load(uuid)
+    Storage-->>Gateway: storedBuffer
+    Gateway->>Adapter: restore(storedBuffer)
+    Note over Adapter: Buffer.from(storedBuffer)<br/>Returns safe defensive copy
+    Adapter-->>Gateway: safeBuffer
+    Gateway-->>Caller: safeBuffer (Untouched by original mutations)
 ```
-Caller's Buffer [0xAA, 0xBB]
-       │
-       ▼ consume()
-Clone allocated: Buffer [0xAA, 0xBB]  ── saved to storage
-       │
-Caller modifies original -> [0xFF, 0xFF] (Storage remains [0xAA, 0xBB])
-```
 
 ---
 
-## When to Use `COPY`
+## 3. Lifecycle Behaviors
 
-- Cryptographic tokens or keys that must not be altered in place.
-- High-frequency telemetry packets where caller buffers are pooled or recycled.
-- Binary blobs where reference isolation is essential for consistency.
+| Operation | Action Taken | Entity State Transition | Error Conditions |
+|---|---|---|---|
+| `consume(buf, adapter)` | Validates buffer, clones byte array via `Buffer.from(buf)`, persists to storage. | `[Initial]` &rarr; `STORED` | Throws `AdapterError` if resource is not a valid `Buffer`. Throws `StorageError` if storage fails. |
+| `restore(entity, adapter)` | Loads clone from storage, returns defensive copy. | Unchanged (`STORED` or `RELEASED`) | Throws `EntityNotFoundError` if ID missing. Throws `EntityStateError` if `DELETED`. |
+| `release(entity, adapter)` | No-op in `BufferAdapter` (no handles). Updates state. | `STORED` &rarr; `RELEASED` | Throws `EntityStateError` if already `DELETED`. |
+| `delete(id)` | Evicts buffer from storage backend. | `*` &rarr; `DELETED` | Throws `EntityNotFoundError` if not found. Throws `EntityStateError` if already `DELETED`. |
 
 ---
 
-## Example
+## 4. Production TypeScript Example
 
 ```typescript
-import { GetoGateway, MemoryStorage, BufferAdapter } from '@mrjacket/geto';
+import { GetoGateway, MemoryStorage, BufferAdapter, IEntity } from '@mrjacket/geto';
 
-const gateway = new GetoGateway({ storage: new MemoryStorage() });
-const adapter = new BufferAdapter();
+async function run() {
+  const gateway = new GetoGateway({ storage: new MemoryStorage() });
+  const adapter = new BufferAdapter();
 
-const source = Buffer.from('Isolated Data');
-const entity = await gateway.consume(source, adapter);
+  // 1. Ingest cryptographic key material
+  const secretKey = Buffer.from('4f8b92c81a2e9d3b5c7f1a0e8d2c4b6a');
 
-// Caller mutates source in-place
-source.fill(0);
+  const entity: IEntity = await gateway.consume(secretKey, adapter, {
+    metadata: { keyId: 'kms-master-01', algorithm: 'aes-256-gcm' }
+  });
 
-// Restored data is completely untouched!
-const restored = await gateway.restore(entity, adapter);
-console.log(restored.toString()); // "Isolated Data"
+  console.log(`Entity created: ${entity.id} (State: ${entity.state})`);
+
+  // 2. Wipe caller memory to prevent accidental exposure in memory dumps
+  secretKey.fill(0);
+  console.log('Original memory zeroed:', secretKey.toString('hex'));
+
+  // 3. Rehydrate from gateway when encryption is needed
+  const activeKey = await gateway.restore(entity, adapter);
+  console.log('Restored key integrity verified:', activeKey.toString('utf-8') === '4f8b92c81a2e9d3b5c7f1a0e8d2c4b6a');
+
+  // 4. Safe deletion when lifecycle concludes
+  await gateway.delete(entity.id);
+}
+
+run().catch(console.error);
 ```
+
+---
+
+## 5. Performance & Resource Considerations
+
+- **Memory Overhead:** `COPY` duplicates the byte length of the input. Consuming a 100 MB buffer requires an additional 100 MB of heap/buffer allocation. For multi-gigabyte files or continuous streams, prefer the [`CAPTURE`](./capture.md) or [`REGISTER`](./register.md) semantics.
+- **Garbage Collection:** Once `delete()` is called on the gateway, the cloned buffer is dereferenced in storage and becomes eligible for V8 garbage collection.
+- **Zero-Length Buffers:** `BufferAdapter` explicitly supports zero-length buffers (`Buffer.alloc(0)`), producing an empty valid clone without errors.

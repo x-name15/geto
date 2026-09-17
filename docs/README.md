@@ -15,11 +15,12 @@ docs/
 ├── guides/                       <-- Practical Developer Guides
 │   ├── getting-started.md        <-- Installation, quickstart & mental model
 │   ├── library.md                <-- Programmatic API reference (methods, types, errors)
+│   ├── recipes.md                <-- Production recipes & architectural patterns
 │   ├── DEVELOPER_GUIDE.md        <-- Full manual (custom adapters & custom engines)
 │   └── ci-cd.md                  <-- CI/CD quality gates, CodeQL & releases
 │
 ├── adapters/                     <-- Adapters & Semantics Reference
-│   ├── overview.md               <-- Adapter contract & tutorial (SHA-256 snapshot)
+│   ├── overview.md               <-- Adapter contract & tutorial (FileSnapshotAdapter)
 │   └── semantics/                <-- Dedicated semantic specifications
 │       ├── copy.md               <-- COPY semantic (BufferAdapter)
 │       ├── serialize.md          <-- SERIALIZE semantic (JsonAdapter)
@@ -36,6 +37,8 @@ docs/
     └── LOG.md                    <-- Engineering decision logs
 ```
 
+> **Runnable Examples:** A comprehensive suite of standalone, runnable Node.js scripts is available in the [`examples/`](../examples/) folder.
+
 ---
 
 ## Guides
@@ -44,6 +47,7 @@ docs/
 |---|---|---|
 | [Getting Started](./guides/getting-started.md) | Everyone | Installation, 5-minute quickstart, and lifecycle basics. |
 | [Library API](./guides/library.md) | Developers | Full API reference for `GetoGateway`, entities, states, and error types. |
+| [Production Recipes & Patterns](./guides/recipes.md) | Backend Engineers | Battle-tested solutions: process supervisors, stream replay, SSRF protection. |
 | [Developer Manual](./guides/DEVELOPER_GUIDE.md) | Developers & Architects | Comprehensive guide on writing production-ready adapters and engines. |
 | [CI/CD & DevOps](./guides/ci-cd.md) | DevOps & Maintainers | Verification pipelines, packaging tests, CodeQL, and automated releases. |
 

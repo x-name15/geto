@@ -14,6 +14,7 @@ npm run typecheck
 npm test
 npm run build
 npm run test:package
+npm run test:examples
 ```
 
 ### Explanation of Pipeline Steps
@@ -21,6 +22,8 @@ npm run test:package
 2. **`npm test` (`vitest run`):** Runs all unit and integration test suites in non-interactive CI mode.
 3. **`npm run build`:** Compiles ES Modules (`dist/index.js`), CommonJS (`dist/index.cjs`), and isolated TypeScript type declarations (`dist/index.d.ts` via `tsconfig.build.json`).
 4. **`npm run test:package`:** Real consumer smoke test validating that all expected public exports exist on the bundled package.
+5. **`npm run test:examples`:** Cross-platform execution of the complete runnable examples suite.
+
 
 ---
 

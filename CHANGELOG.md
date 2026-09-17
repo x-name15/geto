@@ -6,13 +6,21 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 - Comprehensive Developer Guide & Manual (`docs/DEVELOPER_GUIDE.md`) with end-to-end tutorials for custom adapters and custom storage engines.
+- Production Recipes & Architectural Patterns guide (`docs/guides/recipes.md`) covering process supervisors, stream replay buffers, SSRF-safe lazy ingestion, and two-tier storage.
+- In-depth technical specifications with Mermaid sequence diagrams for all five consumption semantics (`docs/adapters/semantics/{copy,serialize,capture,wrap,register}.md`).
+- Standalone, zero-dependency runnable examples suite (`examples/`) covering each semantic plus custom compression adapters, with `npm run test:examples` CI runner.
 - CodeQL automated security analysis workflow (`.github/workflows/codeql.yml`).
 - Semantic PR title validation workflow (`.github/workflows/semantic-pr.yml`).
+- Repository `.editorconfig` enforcing uniform LF newlines and 2-space indentation.
 - Typed representation envelope in `FileStorage` to guarantee binary Buffer fidelity.
 - Stable, frozen Core Gateway contract supporting all 5 fundamental consumption semantics (`COPY`, `SERIALIZE`, `CAPTURE`, `WRAP`, `REGISTER`).
 
 ### Fixed
 - Fixed binary buffer truncation in `FileStorage` by introducing typed base64 envelope storage.
+- Fixed CodeQL `js/useless-conditional` alerts in package smoke test via dynamic namespace inspection.
+- Fixed TypeScript IDE `@types/node` Buffer resolution in unit and integration test files.
+- Fixed broken relative navigation links and `FileSnapshotAdapter` generic typing in documentation.
+
 
 ## [0.5.0] - 2026-09-17 — REGISTER semantic: HttpReferenceAdapter
 
