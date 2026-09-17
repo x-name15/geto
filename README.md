@@ -1,4 +1,4 @@
-# geto
+<h1><img src=".github/images/geto-ascii.png" width="40" height="40"> geto</h1>
 
 [![npm version](https://img.shields.io/npm/v/@mrjacket/geto.svg?color=success)](https://www.npmjs.com/package/@mrjacket/geto)
 [![npm downloads](https://img.shields.io/npm/dm/@mrjacket/geto.svg)](https://www.npmjs.com/package/@mrjacket/geto)
