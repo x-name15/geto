@@ -30,6 +30,17 @@ describe('FileStorage', () => {
     expect(loaded).toBe(payload);
   });
 
+  it('faithfully preserves binary Buffer representations', async () => {
+    const id = 'binary-buffer-id';
+    const binaryData = Buffer.from([0x00, 0xff, 0xca, 0xfe, 0xba, 0xbe]);
+
+    await storage.save(id, binaryData);
+    const loaded = await storage.load(id);
+
+    expect(Buffer.isBuffer(loaded)).toBe(true);
+    expect(loaded).toEqual(binaryData);
+  });
+
   it('deletes stored representation cleanly', async () => {
     const id = 'entity-to-delete-456';
     await storage.save(id, 'temporary content');

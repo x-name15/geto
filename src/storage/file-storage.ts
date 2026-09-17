@@ -60,32 +60,45 @@ export class FileStorage implements IGetoStorage {
     const filePath = this.getFilePath(id);
 
     try {
-      let content: Buffer | string;
+      let envelope: { type: 'buffer' | 'string' | 'json'; payload: string };
+
       if (Buffer.isBuffer(data)) {
-        content = data;
+        envelope = { type: 'buffer', payload: data.toString('base64') };
       } else if (typeof data === 'string') {
-        content = data;
+        envelope = { type: 'string', payload: data };
       } else {
-        content = JSON.stringify(data);
+        envelope = { type: 'json', payload: JSON.stringify(data) };
       }
 
-      await fs.writeFile(filePath, content);
+      await fs.writeFile(filePath, JSON.stringify(envelope), 'utf-8');
     } catch (error) {
       throw new StorageError(`FileStorage failed to save representation for id '${id}'`, { cause: error });
     }
   }
 
   /**
-   * Loads the representation from disk.
+   * Loads the representation from disk, faithfully restoring Buffers, strings, or parsed JSON.
    *
    * @param id - Entity identifier.
-   * @returns A Buffer or string representation.
+   * @returns The restored representation.
    */
   async load(id: string): Promise<unknown> {
     const filePath = this.getFilePath(id);
 
     try {
-      return await fs.readFile(filePath, 'utf-8');
+      const raw = await fs.readFile(filePath, 'utf-8');
+      const envelope = JSON.parse(raw) as { type: string; payload: string };
+
+      if (envelope.type === 'buffer') {
+        return Buffer.from(envelope.payload, 'base64');
+      }
+      if (envelope.type === 'string') {
+        return envelope.payload;
+      }
+      if (envelope.type === 'json') {
+        return JSON.parse(envelope.payload);
+      }
+      return envelope.payload;
     } catch (error: unknown) {
       if (typeof error === 'object' && error !== null && 'code' in error && (error as { code: string }).code === 'ENOENT') {
         throw new StorageError(`No data found for id '${id}'`, { cause: error });

@@ -263,13 +263,66 @@ const gateway = new GetoGateway({ storage: new RedisStorage() });
 Every adapter declares which consumption semantic it implements via `adapter.semantic`.  
 This is observable metadata — the gateway does not behave differently based on it.
 
-| Semantic | Meaning |
-|---|---|
-| `COPY` | Create an independent copy of the resource |
-| `CAPTURE` | Temporarily take ownership/control of a resource's lifecycle |
-| `SERIALIZE` | Transform a resource into a persistable representation |
-| `WRAP` | Manage a live resource without fully consuming it |
-| `REGISTER` | Consume a reference or locator; resolve the resource on restore |
+| Semantic | Meaning | Built-in Adapter |
+|---|---|---|
+| `COPY` | Create an independent copy of the resource | `BufferAdapter` |
+| `SERIALIZE` | Transform a resource into a persistable representation | `JsonAdapter` |
+| `CAPTURE` | Take ownership/control of a single-use resource | `StreamAdapter` |
+| `WRAP` | Manage an active live resource without serializing it | `ProcessAdapter` |
+| `REGISTER` | Store a reference locator; lazily resolve on restore | `HttpReferenceAdapter` |
+
+### 1. `COPY` — Independent Data Duplication
+```typescript
+const adapter = new BufferAdapter();
+const entity = await gateway.consume(Buffer.from('hello'), adapter);
+const copy = await gateway.restore(entity, adapter);
+```
+
+### 2. `SERIALIZE` — Transforming Objects into Persistent State
+```typescript
+const adapter = new JsonAdapter<{ id: number; name: string }>();
+const entity = await gateway.consume({ id: 1, name: 'Item' }, adapter);
+const parsed = await gateway.restore(entity, adapter);
+```
+
+### 3. `CAPTURE` — Replaying Single-Use Resources
+```typescript
+import { Readable } from 'stream';
+const adapter = new StreamAdapter();
+
+// Drains a single-use Node.js stream and stores it
+const entity = await gateway.consume(Readable.from(['Chunk 1', 'Chunk 2']), adapter);
+
+// Restore can be called multiple times, generating fresh Readable streams each time!
+const stream1 = await gateway.restore(entity, adapter);
+const stream2 = await gateway.restore(entity, adapter);
+```
+
+### 4. `WRAP` — Supervising Live Running Resources
+```typescript
+import { spawn } from 'child_process';
+const adapter = new ProcessAdapter();
+
+// Wraps an active live process
+const proc = spawn('node', ['worker.js']);
+const entity = await gateway.consume(proc, adapter);
+
+// Releasing the entity terminates the underlying process cleanly (SIGTERM)
+await gateway.release(entity, adapter);
+```
+
+### 5. `REGISTER` — Deferred / Lazy Network Resolution
+```typescript
+const adapter = new HttpReferenceAdapter({
+  allowedOrigins: ['https://api.github.com']
+});
+
+// Consumes the URL immediately — 0 network requests made
+const entity = await gateway.consume('https://api.github.com/zen', adapter);
+
+// Network fetch is triggered only when restore() is explicitly invoked
+const body = await gateway.restore(entity, adapter);
+```
 
 ---
 
