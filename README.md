@@ -192,6 +192,7 @@ interface IGetoAdapter<T, R> {
 | `BufferAdapter` | `COPY` | Copies a Buffer into an independent representation |
 | `JsonAdapter` | `SERIALIZE` | Serializes arbitrary JavaScript objects/values to JSON strings |
 | `StreamAdapter` | `CAPTURE` | Drains a readable stream and restores fresh, replayable streams |
+| `ProcessAdapter` | `WRAP` | Wraps active ChildProcess instances with supervised termination on release |
 
 ### Custom adapters
 

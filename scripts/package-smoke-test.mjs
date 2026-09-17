@@ -5,6 +5,7 @@ import {
   BufferAdapter,
   JsonAdapter,
   StreamAdapter,
+  ProcessAdapter,
   GetoError,
   EntityNotFoundError
 } from '../dist/index.js';
@@ -16,6 +17,7 @@ if (
   !BufferAdapter ||
   !JsonAdapter ||
   !StreamAdapter ||
+  !ProcessAdapter ||
   !GetoError ||
   !EntityNotFoundError
 ) {

@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2026-09-17 — WRAP semantic: ProcessAdapter, IProcessHandle
+
+### Added
+- `ProcessAdapter` implementing the `WRAP` consumption semantic (`ChildProcess (T) -> IProcessHandle (R)`).
+- `IProcessHandle` controller interface providing real-time liveness checking (`isAlive()`), process ID inspection, and targeted signal dispatch.
+- Supervised cleanup where `gateway.release()` guarantees safe process termination (`SIGTERM`).
+- Unit and integration tests demonstrating live process wrapping, execution retention, and termination on release.
+- Package smoke test coverage for `ProcessAdapter`.
+
 ## [0.3.0] - 2026-09-17 — CAPTURE semantic: StreamAdapter
 
 ### Added

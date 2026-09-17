@@ -1,6 +1,18 @@
 # Engineering Log
 
-## 2026-09-17: Milestone 0.3.0 — CAPTURE Semantic (StreamAdapter)
+## 2026-09-17: Milestone 0.4.0 — WRAP Semantic (ProcessAdapter, IProcessHandle)
+
+**Context:** Resolve the architectural debate around WRAP vs CAPTURE. Unlike CAPTURE (which drena or snapshots a resource into inert data), WRAP retains an active, living handle to the running resource while providing supervision and lifecycle management.
+
+**Implementation details:**
+- `ProcessAdapter`: wraps active Node.js `ChildProcess` instances (`ChildProcess (T) -> IProcessHandle (R)`).
+- `IProcessHandle`: wraps the process without muting or freezing its execution. Exposes live status (`isAlive()`), process identifier (`pid`), and safe termination (`kill()`).
+- **Clear separation of `release()` vs `delete()`:**
+  - `gateway.release(entity, processAdapter)` terminates the operating system process (`kill('SIGTERM')`), keeping the entity descriptor marked as `RELEASED`.
+  - `gateway.delete(id)` removes the entity representation from storage and sets its state to `DELETED`.
+- **Core verification:** The baseline `GetoGateway` orchestrator handled live process handles through `MemoryStorage` without changing any gateway signatures.
+
+---
 
 **Context:** Node.js `Readable` streams are single-use resources. Once drained, they cannot be read again. The `CAPTURE` semantic demonstrates taking control of a resource whose lifecycle is transient or destructive upon consumption.
 

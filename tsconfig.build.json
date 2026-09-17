@@ -14,6 +14,7 @@
     "src/adapters/buffer-adapter.ts",
     "src/adapters/json-adapter.ts",
     "src/adapters/stream-adapter.ts",
+    "src/adapters/process-adapter.ts",
     "src/storage/memory-storage.ts",
     "src/storage/file-storage.ts"
   ],

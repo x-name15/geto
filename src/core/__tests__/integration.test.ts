@@ -152,4 +152,51 @@ describe('Integration Tests', () => {
     }
     expect(Buffer.concat(chunks2).toString()).toBe(originalMessage);
   });
+
+  it('WRAP semantic: ProcessAdapter manages live processes and terminates them on release', async () => {
+    const { spawn } = await import('child_process');
+    const { ProcessAdapter } = await import('../../adapters/process-adapter.js');
+
+    const gateway = new GetoGateway({ storage: new MemoryStorage() });
+    const processAdapter = new ProcessAdapter();
+
+    // Spawn an active live child process
+    const liveProc = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)']);
+
+    try {
+      // Consume wraps the process handle
+      const entity = await gateway.consume(liveProc, processAdapter, {
+        metadata: { pid: liveProc.pid }
+      });
+
+      expect(entity.adapterId).toBe('process');
+      expect(entity.state).toBe(EEntityState.STORED);
+
+      // Restore retrieves the active process
+      const restored = await gateway.restore(entity, processAdapter);
+      expect(restored.pid).toBe(liveProc.pid);
+      expect(restored.killed).toBe(false);
+
+      // Release triggers termination of the live process
+      await gateway.release(entity, processAdapter);
+
+      const afterRelease = await gateway.get(entity.id);
+      expect(afterRelease.state).toBe(EEntityState.RELEASED);
+
+      // Wait briefly for the OS process exit
+      await new Promise<void>((resolve) => {
+        if (liveProc.exitCode !== null || liveProc.killed) {
+          resolve();
+        } else {
+          liveProc.on('exit', () => resolve());
+        }
+      });
+
+      expect(liveProc.killed).toBe(true);
+    } finally {
+      if (liveProc.exitCode === null && !liveProc.killed) {
+        liveProc.kill('SIGKILL');
+      }
+    }
+  });
 });
