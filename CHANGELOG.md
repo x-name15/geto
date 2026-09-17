@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] - 2026-09-17 — CAPTURE semantic: StreamAdapter
+
+### Added
+- `StreamAdapter` implementing the `CAPTURE` consumption semantic (`Readable (T) -> Buffer (R)`).
+- Repeatable restoration support for single-use streams via fresh `Readable` instances.
+- Comprehensive unit and integration tests covering stream error wrapping, empty streams, and lifecycle release.
+- Package smoke test coverage for `StreamAdapter`.
+
 ## [0.2.0] - 2026-09-17 — SERIALIZE semantic: JsonAdapter, FileStorage
 
 ### Added

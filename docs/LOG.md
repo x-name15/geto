@@ -1,6 +1,16 @@
 # Engineering Log
 
-## 2026-09-17: Milestone 0.2.0 — SERIALIZE Semantic & Storage Swappability
+## 2026-09-17: Milestone 0.3.0 — CAPTURE Semantic (StreamAdapter)
+
+**Context:** Node.js `Readable` streams are single-use resources. Once drained, they cannot be read again. The `CAPTURE` semantic demonstrates taking control of a resource whose lifecycle is transient or destructive upon consumption.
+
+**Implementation details:**
+- `StreamAdapter`: drains the readable stream until the `end` event and captures all binary chunks into a single `Buffer` (`Readable (T) -> Buffer (R)`).
+- `restore()`: instantiates a fresh `Readable.from(buffer)` on every invocation.
+- **Value provided by geto:** A stream consumed once can now be restored and replayed multiple times from storage, solving the common Node.js problem of stream consumption irrevocability.
+- **Core verification:** The baseline `GetoGateway` contract and lifecycle remained 100% unchanged.
+
+---
 
 **Context:** Prove that geto supports transformations where the stored representation $R$ is of a different type than the input resource $T$ ($R \neq T$), and prove storage swappability using a disk-based backend.
 

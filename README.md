@@ -1,4 +1,4 @@
-<h1><img src=".github/images/geto-ascii.png" width="40" height="40"> geto</h1>
+<h1><img src=".github/images/geto-ascii.png" width="100" height="100"> geto</h1>
 
 [![npm version](https://img.shields.io/npm/v/@mrjacket/geto.svg?color=success)](https://www.npmjs.com/package/@mrjacket/geto)
 [![npm downloads](https://img.shields.io/npm/dm/@mrjacket/geto.svg)](https://www.npmjs.com/package/@mrjacket/geto)
@@ -191,6 +191,7 @@ interface IGetoAdapter<T, R> {
 |---|---|---|
 | `BufferAdapter` | `COPY` | Copies a Buffer into an independent representation |
 | `JsonAdapter` | `SERIALIZE` | Serializes arbitrary JavaScript objects/values to JSON strings |
+| `StreamAdapter` | `CAPTURE` | Drains a readable stream and restores fresh, replayable streams |
 
 ### Custom adapters
 

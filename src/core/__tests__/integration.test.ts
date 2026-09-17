@@ -121,4 +121,35 @@ describe('Integration Tests', () => {
       await fs.rm(tempDir, { recursive: true, force: true });
     }
   });
+
+  it('CAPTURE semantic: StreamAdapter allows single-use streams to be restored multiple times', async () => {
+    const { Readable } = await import('stream');
+    const { StreamAdapter } = await import('../../adapters/stream-adapter.js');
+
+    const gateway = new GetoGateway({ storage: new MemoryStorage() });
+    const streamAdapter = new StreamAdapter();
+
+    const originalMessage = 'Streaming cursed energy';
+    const singleUseStream = Readable.from([Buffer.from('Streaming '), Buffer.from('cursed energy')]);
+
+    // Consuming drains the original single-use stream
+    const entity = await gateway.consume(singleUseStream, streamAdapter);
+    expect(singleUseStream.readableEnded).toBe(true);
+
+    // First restoration: re-read full contents as a new stream
+    const restoredStream1 = await gateway.restore(entity, streamAdapter);
+    const chunks1: Buffer[] = [];
+    for await (const chunk of restoredStream1) {
+      chunks1.push(chunk);
+    }
+    expect(Buffer.concat(chunks1).toString()).toBe(originalMessage);
+
+    // Second restoration: re-read again (proves repeatable use of once-consumed streams)
+    const restoredStream2 = await gateway.restore(entity, streamAdapter);
+    const chunks2: Buffer[] = [];
+    for await (const chunk of restoredStream2) {
+      chunks2.push(chunk);
+    }
+    expect(Buffer.concat(chunks2).toString()).toBe(originalMessage);
+  });
 });

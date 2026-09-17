@@ -4,6 +4,7 @@ import {
   FileStorage,
   BufferAdapter,
   JsonAdapter,
+  StreamAdapter,
   GetoError,
   EntityNotFoundError
 } from '../dist/index.js';
@@ -14,6 +15,7 @@ if (
   !FileStorage ||
   !BufferAdapter ||
   !JsonAdapter ||
+  !StreamAdapter ||
   !GetoError ||
   !EntityNotFoundError
 ) {
