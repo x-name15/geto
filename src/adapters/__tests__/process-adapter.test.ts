@@ -96,4 +96,20 @@ describe('ProcessAdapter', () => {
     await expect((adapter as any).restore(null)).rejects.toThrow(AdapterError);
     await expect((adapter as any).restore({})).rejects.toThrow(AdapterError);
   });
+
+  it('handle.kill() catches ESRCH race condition and returns false safely', async () => {
+    const fakeProc = {
+      exitCode: null,
+      killed: false,
+      pid: 99999,
+      kill: () => {
+        const err = new Error('Process already exited');
+        (err as any).code = 'ESRCH';
+        throw err;
+      },
+    } as unknown as ChildProcess;
+
+    const handle = await adapter.consume(fakeProc);
+    expect(handle.kill()).toBe(false);
+  });
 });

@@ -64,6 +64,13 @@ export class GetoGateway {
       throw new AdapterError('A valid adapter implementing consume() is required');
     }
 
+    if (
+      options?.metadata !== undefined &&
+      (typeof options.metadata !== 'object' || options.metadata === null || Array.isArray(options.metadata))
+    ) {
+      throw new AdapterError('options.metadata must be a plain object key-value record');
+    }
+
     const id = crypto.randomUUID();
     let representation: R;
 
@@ -194,6 +201,9 @@ export class GetoGateway {
       throw new EntityNotFoundError(entity.id);
     }
     if (canonical.state === EEntityState.DELETED) {
+      throw new EntityStateError(entity.id, canonical.state, 'release');
+    }
+    if (canonical.state === EEntityState.RELEASED) {
       throw new EntityStateError(entity.id, canonical.state, 'release');
     }
 

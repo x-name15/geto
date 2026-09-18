@@ -26,7 +26,7 @@ export class FileStorage implements IGetoStorage {
    */
   private async ensureBaseDir(): Promise<void> {
     try {
-      await fs.mkdir(this.baseDir, { recursive: true });
+      await fs.mkdir(this.baseDir, { recursive: true, mode: 0o700 });
     } catch (error) {
       throw new StorageError(`FileStorage failed to initialize directory '${this.baseDir}'`, { cause: error });
     }
@@ -72,8 +72,8 @@ export class FileStorage implements IGetoStorage {
         envelope = { type: 'json', payload: JSON.stringify(data) };
       }
 
-      // Atomic write: write to isolated temporary file, then rename atomically
-      await fs.writeFile(tempFilePath, JSON.stringify(envelope), 'utf-8');
+      // Atomic write: write to isolated temporary file with 0o600 permissions, then rename atomically
+      await fs.writeFile(tempFilePath, JSON.stringify(envelope), { encoding: 'utf-8', mode: 0o600 });
       await fs.rename(tempFilePath, filePath);
     } catch (error) {
       try {

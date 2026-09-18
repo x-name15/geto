@@ -11,6 +11,11 @@ export interface IJsonAdapterOptions {
    * Defaults to `true`.
    */
   preventPrototypePollution?: boolean;
+  /**
+   * Maximum allowed JSON string size in bytes to prevent denial-of-service memory exhaustion.
+   * If unset or undefined, no size budget is enforced.
+   */
+  maxBytes?: number;
 }
 
 /**
@@ -28,14 +33,16 @@ export class JsonAdapter<T = unknown> implements IGetoAdapter<T, string> {
   readonly semantic = EConsumptionSemantic.SERIALIZE;
 
   private readonly preventPrototypePollution: boolean;
+  private readonly maxBytes?: number;
 
   /**
    * Initializes a new {@link JsonAdapter} instance.
    *
-   * @param options - Configuration options for serialization and security.
+   * @param options - Configuration options for serialization, size limits and security.
    */
   constructor(options?: IJsonAdapterOptions) {
     this.preventPrototypePollution = options?.preventPrototypePollution ?? true;
+    this.maxBytes = options?.maxBytes;
   }
 
   /**
@@ -43,7 +50,7 @@ export class JsonAdapter<T = unknown> implements IGetoAdapter<T, string> {
    *
    * @param resource - The data or object to serialize.
    * @returns A promise resolving to the serialized JSON string.
-   * @throws {AdapterError} If JSON serialization fails (e.g. circular references or BigInt).
+   * @throws {AdapterError} If JSON serialization fails or exceeds maxBytes budget.
    */
   async consume(resource: T): Promise<string> {
     try {
@@ -51,8 +58,16 @@ export class JsonAdapter<T = unknown> implements IGetoAdapter<T, string> {
       if (serialized === undefined) {
         throw new Error('JSON.stringify returned undefined (unsupported value such as undefined or function)');
       }
+      if (this.maxBytes !== undefined && Buffer.byteLength(serialized, 'utf-8') > this.maxBytes) {
+        throw new AdapterError(
+          `Serialized JSON size exceeded configured maximum allowed size of ${this.maxBytes} bytes`
+        );
+      }
       return serialized;
     } catch (error) {
+      if (error instanceof AdapterError) {
+        throw error;
+      }
       throw new AdapterError(`JsonAdapter failed to serialize resource`, { cause: error });
     }
   }
@@ -62,11 +77,17 @@ export class JsonAdapter<T = unknown> implements IGetoAdapter<T, string> {
    *
    * @param data - The JSON string representation.
    * @returns A promise resolving to the parsed object of type `T`.
-   * @throws {AdapterError} If parsing fails due to malformed JSON or invalid input types.
+   * @throws {AdapterError} If parsing fails due to malformed JSON, invalid input types, or exceeding maxBytes.
    */
   async restore(data: string): Promise<T> {
     if (typeof data !== 'string') {
       throw new AdapterError(`JsonAdapter requires a string representation to restore, received '${typeof data}'`);
+    }
+
+    if (this.maxBytes !== undefined && Buffer.byteLength(data, 'utf-8') > this.maxBytes) {
+      throw new AdapterError(
+        `JSON data size ${Buffer.byteLength(data, 'utf-8')} bytes exceeds configured maximum allowed size of ${this.maxBytes} bytes`
+      );
     }
 
     try {

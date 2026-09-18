@@ -72,7 +72,18 @@ export class StreamAdapter implements IGetoAdapter<Readable, Buffer> {
 
       const onData = (chunk: Buffer | string) => {
         if (settled) return;
-        const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+
+        let buf: Buffer;
+        try {
+          buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as string);
+        } catch (error) {
+          settled = true;
+          cleanup();
+          resource.destroy();
+          reject(new AdapterError('Failed to process stream chunk into Buffer', { cause: error }));
+          return;
+        }
+
         totalBytes += buf.length;
 
         if (this.maxBytes !== undefined && totalBytes > this.maxBytes) {

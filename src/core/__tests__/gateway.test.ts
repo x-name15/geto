@@ -367,4 +367,64 @@ describe('GetoGateway', () => {
       expect(await gateway.exists(e3.id)).toBe(true);
     });
   });
+
+  describe('defensive hardening (1.1.3)', () => {
+    it('deeply freezes nested metadata custom objects and arrays', async () => {
+      const nestedMeta = {
+        config: {
+          retries: 3,
+          headers: { auth: 'bearer' },
+        },
+        tags: ['a', 'b'],
+      };
+
+      const entity = await gateway.consume(Buffer.from('immutable'), adapter, { metadata: nestedMeta });
+
+      // Mutating original source input does not affect entity
+      nestedMeta.config.retries = 99;
+      nestedMeta.tags.push('c');
+      expect((entity.metadata.custom as any).config.retries).toBe(3);
+      expect((entity.metadata.custom as any).tags).toEqual(['a', 'b']);
+
+      // Mutating nested objects directly throws
+      expect(() => {
+        (entity.metadata.custom as any).config.retries = 10;
+      }).toThrow();
+      expect(() => {
+        (entity.metadata.custom as any).config.headers.auth = 'none';
+      }).toThrow();
+      expect(() => {
+        (entity.metadata.custom as any).tags.push('x');
+      }).toThrow();
+    });
+
+    it('rejects invalid options.metadata types with AdapterError', async () => {
+      // @ts-expect-error test non-object metadata
+      await expect(gateway.consume(Buffer.from('t'), adapter, { metadata: 'invalid' })).rejects.toThrow(AdapterError);
+      // @ts-expect-error test array metadata
+      await expect(gateway.consume(Buffer.from('t'), adapter, { metadata: ['invalid'] })).rejects.toThrow(AdapterError);
+      // @ts-expect-error test number metadata
+      await expect(gateway.consume(Buffer.from('t'), adapter, { metadata: 123 })).rejects.toThrow(AdapterError);
+    });
+
+    it('prevents double-release and throws EntityStateError on already RELEASED entity', async () => {
+      const entity = await gateway.consume(Buffer.from('test'), adapter);
+
+      const releasableAdapter: IGetoAdapter<Buffer, Buffer> = {
+        adapterId: 'buffer',
+        semantic: EConsumptionSemantic.WRAP,
+        consume: async (b) => b,
+        restore: async (b) => b,
+        release: async () => {},
+      };
+
+      await gateway.release(entity, releasableAdapter);
+      const released = await gateway.get(entity.id);
+      expect(released.state).toBe(EEntityState.RELEASED);
+
+      // Second release attempt must throw EntityStateError
+      await expect(gateway.release(entity, releasableAdapter)).rejects.toThrow(EntityStateError);
+      await expect(gateway.release(entity, releasableAdapter)).rejects.toThrow(/Cannot perform 'release'/);
+    });
+  });
 });

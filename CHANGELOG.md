@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.3] - 2026-09-18 — Crash Prevention, TOCTOU Race & SSRF Hardening
+
+### Security & Reliability
+- **CWE-754 Fatal Process Crash Prevention (`StreamAdapter`)**: Handled chunk conversion inside the `'data'` event listener with explicit `try/catch`. Streams emitting invalid non-buffer / non-string chunks now cleanly abort, destroy the stream, and reject with `AdapterError` instead of throwing an unhandled `TypeError` that crashes the entire Node.js runtime process.
+- **CWE-362 TOCTOU Race & ESRCH Tolerance (`ProcessHandle.kill`)**: In `ProcessHandle.kill()`, wrapped `process.kill(signal)` in a `try/catch` block catching `ESRCH`. If a child process terminates between the `isAlive()` check and the signal delivery, `handle.kill()` returns `false` safely without throwing an unhandled synchronous exception.
+- **CWE-471 Deep Recursive Immutability (`GetoEntity`)**: Implemented recursive `deepFreeze` and `deepClone` across arbitrary nested custom metadata objects and arrays. Mutations to deeply nested configuration properties or arrays outside or inside the entity descriptor fail immediately in strict mode.
+- **CWE-732 Secure File & Directory Permissions (`FileStorage`)**: Restricted filesystem permissions to the executing user only (`0o700` for storage base directories, `0o600` for representation `.bin` files), preventing unauthorized local users from accessing sensitive cached data in shared multi-user environments.
+- **CWE-918 SSRF Private IP Range Defense (`HttpReferenceAdapter`)**: Introduced `blockPrivateIPs?: boolean` option. Rejects requests targeting loopback (`127.0.0.0/8`, `localhost`, `::1`), private networks (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), cloud metadata services (`169.254.169.254`), and local domains (`.local`, `.internal`).
+- **Allowed Origins Normalization (`HttpReferenceAdapter`)**: Normalized `allowedOrigins` in constructor via WHATWG URL parsing, ensuring that trailing slashes or subpaths (`https://api.github.com/v1/`) do not cause false-positive rejection of valid origin endpoints.
+- **CWE-400 JSON Memory Budget Limit (`JsonAdapter`)**: Added `maxBytes?: number` in `IJsonAdapterOptions` to reject oversized payloads during both `consume()` serialization and `restore()` deserialization, protecting against heap exhaustion attacks.
+- **State Machine Double-Release Prevention (`GetoGateway`)**: Calling `gateway.release()` on an entity that is already in `RELEASED` state now strictly throws `EntityStateError`, preventing double-invocation of cleanup hooks or unexpected OS signal duplication.
+- **Metadata Type Validation (`GetoGateway`)**: `gateway.consume()` verifies that `options.metadata` is a valid plain key-value object (rejecting primitives and arrays with `AdapterError`).
+
 ## [1.1.2] - 2026-09-18 — DoS Defense, Prototype Pollution & Reliability Hardening
 
 ### Security & Reliability

@@ -41,7 +41,19 @@ class ProcessHandle implements IProcessHandle {
 
   kill(signal: NodeJS.Signals | number = 'SIGTERM'): boolean {
     if (this.isAlive()) {
-      return this.process.kill(signal);
+      try {
+        return this.process.kill(signal);
+      } catch (error: unknown) {
+        if (
+          typeof error === 'object' &&
+          error !== null &&
+          'code' in error &&
+          (error as { code: string }).code === 'ESRCH'
+        ) {
+          return false;
+        }
+        throw error;
+      }
     }
     return false;
   }

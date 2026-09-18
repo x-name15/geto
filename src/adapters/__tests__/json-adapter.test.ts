@@ -78,4 +78,21 @@ describe('JsonAdapter', () => {
     const restored = await permissiveAdapter.restore(payload) as Record<string, unknown>;
     expect(restored.customProp).toBe('val');
   });
+
+  it('enforces maxBytes limit on consume and restore', async () => {
+    const boundedAdapter = new JsonAdapter({ maxBytes: 15 });
+
+    // Object serializes to '{"key":"0123456789"}' which is 20 bytes > 15 bytes
+    await expect(boundedAdapter.consume({ key: '0123456789' })).rejects.toThrow(AdapterError);
+    await expect(boundedAdapter.consume({ key: '0123456789' })).rejects.toThrow(/exceeded configured maximum allowed size/);
+
+    // Valid small object passes
+    const smallSerialized = await boundedAdapter.consume({ a: 1 });
+    expect(smallSerialized).toBe('{"a":1}');
+
+    // Restore rejects oversized input string
+    const oversizedString = '{"longContent":"this string is way too long for twenty bytes"}';
+    await expect(boundedAdapter.restore(oversizedString)).rejects.toThrow(AdapterError);
+    await expect(boundedAdapter.restore(oversizedString)).rejects.toThrow(/exceeds configured maximum allowed size/);
+  });
 });

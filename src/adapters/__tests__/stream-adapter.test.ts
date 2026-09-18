@@ -116,4 +116,13 @@ describe('StreamAdapter', () => {
     expect(() => new StreamAdapter({ maxBytes: -1 })).toThrow(AdapterError);
     expect(() => new StreamAdapter({ maxBytes: NaN })).toThrow(AdapterError);
   });
+
+  it('rejects streams emitting non-buffer, non-string chunks with AdapterError', async () => {
+    const objectStream = Readable.from([{ id: 1, name: 'Satoru' }]);
+
+    await expect(adapter.consume(objectStream)).rejects.toThrow(AdapterError);
+    await expect(
+      adapter.consume(Readable.from([{ id: 2 }]))
+    ).rejects.toThrow(/Failed to process stream chunk into Buffer/);
+  });
 });

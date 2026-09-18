@@ -1,6 +1,43 @@
 import { IEntity, EEntityState, IEntityMetadata } from '../models/index.js';
 
 /**
+ * Recursively freezes an object and all its nested properties.
+ */
+function deepFreeze<T>(obj: T): T {
+  if (obj === null || typeof obj !== 'object' || Object.isFrozen(obj)) {
+    return obj;
+  }
+  Object.freeze(obj);
+  for (const key of Object.getOwnPropertyNames(obj)) {
+    const value = (obj as Record<string, unknown>)[key];
+    if (value !== null && typeof value === 'object') {
+      deepFreeze(value);
+    }
+  }
+  return obj;
+}
+
+/**
+ * Creates a defensive deep clone of a plain object or array.
+ */
+function deepClone<T>(value: T): T {
+  if (value === null || typeof value !== 'object') {
+    return value;
+  }
+  if (value instanceof Date) {
+    return new Date(value.getTime()) as unknown as T;
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => deepClone(item)) as unknown as T;
+  }
+  const copy: Record<string, unknown> = {};
+  for (const key of Object.keys(value as Record<string, unknown>)) {
+    copy[key] = deepClone((value as Record<string, unknown>)[key]);
+  }
+  return copy as T;
+}
+
+/**
  * Internal immutable representation of an entity descriptor.
  */
 export class GetoEntity implements IEntity {
@@ -25,9 +62,9 @@ export class GetoEntity implements IEntity {
     this.createdAt = new Date(createdAt.getTime());
     this.updatedAt = new Date(updatedAt.getTime());
 
-    // Defensive freezing of metadata and nested custom properties
+    // Defensive deep freezing of metadata and nested custom properties
     if (metadata.custom && typeof metadata.custom === 'object') {
-      Object.freeze(metadata.custom);
+      deepFreeze(metadata.custom);
     }
     this.metadata = Object.freeze({
       ...metadata,
@@ -40,7 +77,8 @@ export class GetoEntity implements IEntity {
 
   static create(id: string, adapterId: string, metadata?: Record<string, unknown>): GetoEntity {
     const now = new Date();
-    const clonedCustom = metadata && typeof metadata === 'object' ? Object.freeze({ ...metadata }) : undefined;
+    const clonedCustom =
+      metadata && typeof metadata === 'object' ? deepFreeze(deepClone(metadata)) : undefined;
     const entityMetadata: IEntityMetadata = {
       id,
       adapterId,

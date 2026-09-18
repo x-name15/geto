@@ -185,4 +185,46 @@ describe('HttpReferenceAdapter', () => {
     );
     expect(mockReader.cancel).toHaveBeenCalled();
   });
+
+  it('normalizes allowedOrigins with trailing slashes or subpaths', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      redirected: false,
+      text: async () => 'ok',
+    });
+
+    const adapter = new HttpReferenceAdapter({
+      allowedOrigins: ['https://api.github.com/v1/'],
+      fetchFn: mockFetch,
+    });
+
+    // Successfully consumes and restores because origin was normalized to 'https://api.github.com'
+    await expect(adapter.consume('https://api.github.com/users/octocat')).resolves.toBeDefined();
+    await expect(adapter.restore('https://api.github.com/users/octocat')).resolves.toBe('ok');
+  });
+
+  it('blocks private and loopback IPs when blockPrivateIPs is enabled', async () => {
+    const adapter = new HttpReferenceAdapter({ blockPrivateIPs: true });
+
+    const blockedHosts = [
+      'http://127.0.0.1:8080/admin',
+      'http://localhost/secret',
+      'http://10.0.1.50/dashboard',
+      'http://172.16.0.1/status',
+      'http://192.168.1.1/router',
+      'http://169.254.169.254/latest/meta-data',
+      'http://[::1]/internal',
+      'http://service.internal/config',
+      'http://printer.local/print',
+    ];
+
+    for (const url of blockedHosts) {
+      await expect(adapter.consume(url)).rejects.toThrow(AdapterError);
+      await expect(adapter.consume(url)).rejects.toThrow(/private or loopback address/);
+    }
+
+    // Public host passes
+    await expect(adapter.consume('https://example.com/public')).resolves.toBe('https://example.com/public');
+  });
 });
