@@ -24,15 +24,21 @@ import {
  */
 export class GetoGateway {
   private readonly storage: IGetoStorage;
+  private readonly maxTombstones?: number;
   private readonly entities: Map<string, GetoEntity>;
 
   /**
    * Creates a new instance of {@link GetoGateway}.
    *
    * @param options - Configuration options including the storage provider.
+   * @throws {StorageError} If no valid storage provider is provided.
    */
   constructor(options: IGatewayOptions) {
+    if (!options || !options.storage || typeof options.storage.save !== 'function') {
+      throw new StorageError('A valid storage provider is required to initialize GetoGateway');
+    }
     this.storage = options.storage;
+    this.maxTombstones = options.maxTombstones;
     this.entities = new Map<string, GetoEntity>();
   }
 
@@ -86,6 +92,12 @@ export class GetoGateway {
     return entity;
   }
 
+  private validateId(id: string): void {
+    if (!id || typeof id !== 'string' || id.trim().length === 0) {
+      throw new EntityNotFoundError(String(id));
+    }
+  }
+
   /**
    * Retrieves an entity descriptor by its unique identifier.
    *
@@ -96,6 +108,7 @@ export class GetoGateway {
    * @throws {EntityStateError} If the entity was marked as DELETED.
    */
   async get(id: string): Promise<IEntity> {
+    this.validateId(id);
     const entity = this.entities.get(id);
     if (!entity) {
       throw new EntityNotFoundError(id);
@@ -119,7 +132,7 @@ export class GetoGateway {
    * @throws {StorageError} If the storage backend fails to load the representation.
    */
   async restore<T, R>(entity: IEntity, adapter: IGetoAdapter<T, R>): Promise<T> {
-    if (!entity || !entity.id) {
+    if (!entity || !entity.id || typeof entity.id !== 'string') {
       throw new EntityNotFoundError(String(entity?.id ?? 'undefined'));
     }
     if (!adapter || typeof adapter.restore !== 'function') {
@@ -168,7 +181,7 @@ export class GetoGateway {
    * @throws {StorageError} If loading from storage fails.
    */
   async release<T, R>(entity: IEntity, adapter: IGetoAdapter<T, R>): Promise<void> {
-    if (!entity || !entity.id) {
+    if (!entity || !entity.id || typeof entity.id !== 'string') {
       throw new EntityNotFoundError(String(entity?.id ?? 'undefined'));
     }
     if (!adapter) {
@@ -232,6 +245,7 @@ export class GetoGateway {
    * @throws {StorageError} If the storage backend fails to remove the representation.
    */
   async delete(id: string): Promise<void> {
+    this.validateId(id);
     const entity = this.entities.get(id);
     if (!entity) {
       throw new EntityNotFoundError(id);
@@ -248,6 +262,53 @@ export class GetoGateway {
 
     const updatedEntity = entity.withState(EEntityState.DELETED).withUpdatedAt(new Date());
     this.entities.set(id, updatedEntity);
+
+    // Evict oldest tombstones if maxTombstones budget is exceeded
+    if (this.maxTombstones !== undefined && this.maxTombstones >= 0) {
+      let tombstoneCount = 0;
+      for (const item of this.entities.values()) {
+        if (item.state === EEntityState.DELETED) {
+          tombstoneCount++;
+        }
+      }
+
+      if (tombstoneCount > this.maxTombstones) {
+        // Evict oldest deleted entities (Map iteration maintains insertion order)
+        for (const [key, item] of this.entities.entries()) {
+          if (item.state === EEntityState.DELETED) {
+            this.entities.delete(key);
+            tombstoneCount--;
+            if (tombstoneCount <= this.maxTombstones) {
+              break;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Cleans up retained DELETED entity tombstones from internal gateway memory.
+   *
+   * @param maxAgeMs - Optional threshold in milliseconds. If specified, only tombstones
+   * whose last updated date is older than `Date.now() - maxAgeMs` will be evicted.
+   * If omitted, all tombstones are pruned immediately.
+   * @returns The total number of evicted tombstones.
+   */
+  pruneDeleted(maxAgeMs?: number): number {
+    let pruned = 0;
+    const now = Date.now();
+
+    for (const [id, entity] of this.entities.entries()) {
+      if (entity.state === EEntityState.DELETED) {
+        if (maxAgeMs === undefined || now - entity.updatedAt.getTime() >= maxAgeMs) {
+          this.entities.delete(id);
+          pruned++;
+        }
+      }
+    }
+
+    return pruned;
   }
 
   /**
@@ -257,6 +318,9 @@ export class GetoGateway {
    * @returns A promise that resolves to `true` if active, otherwise `false`.
    */
   async exists(id: string): Promise<boolean> {
+    if (!id || typeof id !== 'string' || id.trim().length === 0) {
+      return false;
+    }
     const entity = this.entities.get(id);
     if (!entity) return false;
     return entity.state !== EEntityState.DELETED;
@@ -271,6 +335,7 @@ export class GetoGateway {
    * @throws {EntityNotFoundError} If the entity is not found or has been deleted.
    */
   async inspect(id: string): Promise<IEntityMetadata> {
+    this.validateId(id);
     const entity = await this.get(id);
     return entity.metadata;
   }

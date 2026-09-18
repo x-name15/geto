@@ -37,4 +37,23 @@ describe('MemoryStorage', () => {
     await storage.save('1', 'new');
     expect(await storage.load('1')).toBe('new');
   });
+
+  it('reports size and clears storage properly', async () => {
+    expect(storage.size).toBe(0);
+    await storage.save('k1', 'v1');
+    await storage.save('k2', 'v2');
+    expect(storage.size).toBe(2);
+
+    storage.clear();
+    expect(storage.size).toBe(0);
+    expect(await storage.exists('k1')).toBe(false);
+  });
+
+  it('rejects empty or whitespace IDs with StorageError', async () => {
+    await expect(storage.save('', 'data')).rejects.toThrow(StorageError);
+    await expect(storage.save('   ', 'data')).rejects.toThrow(StorageError);
+    await expect(storage.load('')).rejects.toThrow(StorageError);
+    await expect(storage.delete('')).rejects.toThrow(StorageError);
+    expect(await storage.exists('')).toBe(false);
+  });
 });

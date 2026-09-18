@@ -42,4 +42,22 @@ describe('BufferAdapter', () => {
     
     expect(restored.toString()).toBe('data integrity');
   });
+
+  it('rejects non-buffer resources in consume with AdapterError', async () => {
+    // @ts-expect-error test non-buffer
+    await expect(adapter.consume('not-a-buffer')).rejects.toThrow();
+    // @ts-expect-error test object
+    await expect(adapter.consume({ type: 'Buffer' })).rejects.toThrow();
+    // @ts-expect-error test null
+    await expect(adapter.consume(null)).rejects.toThrow();
+  });
+
+  it('rejects non-buffer representations in restore with AdapterError', async () => {
+    // @ts-expect-error test non-buffer
+    await expect(adapter.restore('not-a-buffer')).rejects.toThrow();
+    // @ts-expect-error test number
+    await expect(adapter.restore(1234)).rejects.toThrow();
+    // @ts-expect-error test null
+    await expect(adapter.restore(null)).rejects.toThrow();
+  });
 });

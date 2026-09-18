@@ -18,6 +18,16 @@ export interface IHttpReferenceAdapterOptions {
    */
   redirect?: 'follow' | 'error' | 'manual';
   /**
+   * Request timeout in milliseconds to prevent Slowloris hangs.
+   * Defaults to 30,000ms (30 seconds). Set to 0 to disable timeout.
+   */
+  timeoutMs?: number;
+  /**
+   * Maximum allowed response size in bytes to guard against denial-of-service decompression bombs.
+   * If unset or undefined, no size budget is enforced.
+   */
+  maxBytes?: number;
+  /**
    * Optional custom fetch implementation, defaults to native global `fetch`.
    */
   fetchFn?: typeof fetch;
@@ -37,16 +47,20 @@ export class HttpReferenceAdapter implements IGetoAdapter<string, string> {
 
   private readonly allowedOrigins?: Set<string>;
   private readonly redirect: 'follow' | 'error' | 'manual';
+  private readonly timeoutMs: number;
+  private readonly maxBytes?: number;
   private readonly fetchFn: typeof fetch;
 
   /**
    * Initializes a new {@link HttpReferenceAdapter}.
    *
-   * @param options - Configuration options including allowed origins and optional fetch provider.
+   * @param options - Configuration options including allowed origins, timeout, size limits and optional fetch provider.
    */
   constructor(options?: IHttpReferenceAdapterOptions) {
     this.allowedOrigins = options?.allowedOrigins ? new Set(options.allowedOrigins) : undefined;
     this.redirect = options?.redirect ?? (this.allowedOrigins && this.allowedOrigins.size > 0 ? 'error' : 'follow');
+    this.timeoutMs = options?.timeoutMs !== undefined ? options.timeoutMs : 30000;
+    this.maxBytes = options?.maxBytes;
     this.fetchFn = options?.fetchFn ?? globalThis.fetch;
   }
 
@@ -101,8 +115,22 @@ export class HttpReferenceAdapter implements IGetoAdapter<string, string> {
   async restore(data: string): Promise<string> {
     this.validateUrl(data);
 
+    const controller = this.timeoutMs > 0 ? new AbortController() : undefined;
+    let timerId: ReturnType<typeof setTimeout> | undefined;
+
+    if (controller && this.timeoutMs > 0) {
+      timerId = setTimeout(() => {
+        controller.abort(new Error(`HTTP request timed out after ${this.timeoutMs}ms`));
+      }, this.timeoutMs);
+    }
+
     try {
-      const response = await this.fetchFn(data, { redirect: this.redirect });
+      const fetchInit: RequestInit = {
+        redirect: this.redirect,
+        signal: controller?.signal,
+      };
+
+      const response = await this.fetchFn(data, fetchInit);
 
       // If fetch followed a redirect, verify that the final destination conforms to security policy
       if (response.redirected && response.url) {
@@ -112,12 +140,64 @@ export class HttpReferenceAdapter implements IGetoAdapter<string, string> {
       if (!response.ok) {
         throw new Error(`HTTP request failed with status ${response.status}: ${response.statusText}`);
       }
-      return await response.text();
+
+      // Check Content-Length header against maxBytes budget if present
+      if (this.maxBytes !== undefined) {
+        const contentLength = response.headers.get('content-length');
+        if (contentLength !== null) {
+          const parsedLength = parseInt(contentLength, 10);
+          if (!isNaN(parsedLength) && parsedLength > this.maxBytes) {
+            throw new AdapterError(
+              `Response size ${parsedLength} bytes exceeds configured maximum allowed size of ${this.maxBytes} bytes`
+            );
+          }
+        }
+      }
+
+      // If maxBytes is configured and streaming body is available, enforce size limit while reading chunks
+      if (this.maxBytes !== undefined && response.body && typeof response.body.getReader === 'function') {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let totalBytes = 0;
+        let resultText = '';
+
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            totalBytes += value.byteLength;
+            if (totalBytes > this.maxBytes) {
+              await reader.cancel();
+              throw new AdapterError(
+                `Response body stream exceeded configured maximum allowed size of ${this.maxBytes} bytes`
+              );
+            }
+            resultText += decoder.decode(value, { stream: true });
+          }
+          resultText += decoder.decode();
+          return resultText;
+        } finally {
+          reader.releaseLock();
+        }
+      }
+
+      const text = await response.text();
+      if (this.maxBytes !== undefined && Buffer.byteLength(text, 'utf-8') > this.maxBytes) {
+        throw new AdapterError(
+          `Response body size exceeded configured maximum allowed size of ${this.maxBytes} bytes`
+        );
+      }
+      return text;
     } catch (error) {
       if (error instanceof AdapterError) {
         throw error;
       }
       throw new AdapterError(`HttpReferenceAdapter failed to fetch resource from '${data}'`, { cause: error });
+    } finally {
+      if (timerId !== undefined) {
+        clearTimeout(timerId);
+      }
     }
   }
 }

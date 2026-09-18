@@ -2,7 +2,7 @@ export { GetoGateway } from './core/gateway.js';
 export { MemoryStorage } from './storage/memory-storage.js';
 export { FileStorage } from './storage/file-storage.js';
 export { BufferAdapter } from './adapters/buffer-adapter.js';
-export { JsonAdapter } from './adapters/json-adapter.js';
+export { JsonAdapter, type IJsonAdapterOptions } from './adapters/json-adapter.js';
 export { StreamAdapter, type IStreamAdapterOptions } from './adapters/stream-adapter.js';
 export { ProcessAdapter, type IProcessHandle } from './adapters/process-adapter.js';
 export { HttpReferenceAdapter, type IHttpReferenceAdapterOptions } from './adapters/http-reference-adapter.js';

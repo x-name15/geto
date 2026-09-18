@@ -36,7 +36,7 @@ describe('HttpReferenceAdapter', () => {
     await adapter.consume(targetUrl);
 
     const result = await adapter.restore(targetUrl);
-    expect(mockFetch).toHaveBeenCalledWith(targetUrl, { redirect: 'follow' });
+    expect(mockFetch).toHaveBeenCalledWith(targetUrl, expect.objectContaining({ redirect: 'follow' }));
     expect(result).toBe(expectedContent);
   });
 
@@ -61,7 +61,10 @@ describe('HttpReferenceAdapter', () => {
 
     // Verify redirect: 'error' is passed to fetch by default when allowedOrigins is configured
     await adapter.restore('https://trusted.jujutsu.ac.jp/scrolls');
-    expect(mockFetch).toHaveBeenCalledWith('https://trusted.jujutsu.ac.jp/scrolls', { redirect: 'error' });
+    expect(mockFetch).toHaveBeenCalledWith(
+      'https://trusted.jujutsu.ac.jp/scrolls',
+      expect.objectContaining({ redirect: 'error' })
+    );
   });
 
   it('rejects unsupported protocols (file, javascript, data, ftp)', async () => {
@@ -105,5 +108,81 @@ describe('HttpReferenceAdapter', () => {
 
     const failingAdapter = new HttpReferenceAdapter({ fetchFn: failingFetch });
     await expect(failingAdapter.restore('https://example.com/missing')).rejects.toThrow(AdapterError);
+  });
+
+  it('aborts and throws AdapterError on request timeout', async () => {
+    const hangingFetch = vi.fn().mockImplementation((_url, init?: RequestInit) => {
+      return new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => {
+          reject(new Error('The operation was aborted due to timeout'));
+        });
+      });
+    });
+
+    const adapter = new HttpReferenceAdapter({
+      timeoutMs: 50,
+      fetchFn: hangingFetch,
+    });
+
+    await expect(adapter.restore('https://example.com/slow')).rejects.toThrow(AdapterError);
+    await expect(adapter.restore('https://example.com/slow')).rejects.toThrow(/HttpReferenceAdapter failed to fetch resource/);
+  });
+
+  it('rejects response when Content-Length exceeds maxBytes', async () => {
+    const mockHeaders = new Map([['content-length', '5000']]);
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: {
+        get: (name: string) => mockHeaders.get(name.toLowerCase()) ?? null,
+      },
+      text: async () => 'huge payload',
+    });
+
+    const adapter = new HttpReferenceAdapter({
+      maxBytes: 1024,
+      fetchFn: mockFetch,
+    });
+
+    await expect(adapter.restore('https://example.com/bomb')).rejects.toThrow(AdapterError);
+    await expect(adapter.restore('https://example.com/bomb')).rejects.toThrow(/exceeds configured maximum allowed size of 1024 bytes/);
+  });
+
+  it('rejects response when streaming body exceeds maxBytes', async () => {
+    const chunk1 = new TextEncoder().encode('12345');
+    const chunk2 = new TextEncoder().encode('67890');
+    let chunkIndex = 0;
+    const chunks = [chunk1, chunk2];
+
+    const mockReader = {
+      read: vi.fn().mockImplementation(async () => {
+        if (chunkIndex < chunks.length) {
+          return { done: false, value: chunks[chunkIndex++] };
+        }
+        return { done: true, value: undefined };
+      }),
+      cancel: vi.fn().mockResolvedValue(undefined),
+      releaseLock: vi.fn(),
+    };
+
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: { get: () => null },
+      body: {
+        getReader: () => mockReader,
+      },
+      text: async () => '1234567890',
+    });
+
+    const adapter = new HttpReferenceAdapter({
+      maxBytes: 8, // limit is 8 bytes, stream sends 10 bytes
+      fetchFn: mockFetch,
+    });
+
+    await expect(adapter.restore('https://example.com/stream-bomb')).rejects.toThrow(
+      /exceeded configured maximum allowed size of 8 bytes/
+    );
+    expect(mockReader.cancel).toHaveBeenCalled();
   });
 });

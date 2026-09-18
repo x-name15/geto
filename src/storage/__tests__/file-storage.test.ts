@@ -97,4 +97,25 @@ describe('FileStorage', () => {
       expect(await storage.load(validId)).toBe('valid-data');
     }
   });
+
+  it('throws StorageError on corrupted or non-envelope JSON files', async () => {
+    const id = 'corrupted-envelope-id';
+    const filePath = path.join(tempDir, `${id}.bin`);
+
+    // Write malformed JSON
+    await fs.writeFile(filePath, 'not json at all', 'utf-8');
+    await expect(storage.load(id)).rejects.toThrow(StorageError);
+
+    // Write null JSON
+    await fs.writeFile(filePath, 'null', 'utf-8');
+    await expect(storage.load(id)).rejects.toThrow(StorageError);
+
+    // Write envelope missing payload
+    await fs.writeFile(filePath, JSON.stringify({ type: 'string' }), 'utf-8');
+    await expect(storage.load(id)).rejects.toThrow(StorageError);
+
+    // Write envelope with non-string payload for buffer
+    await fs.writeFile(filePath, JSON.stringify({ type: 'buffer', payload: 1234 }), 'utf-8');
+    await expect(storage.load(id)).rejects.toThrow(StorageError);
+  });
 });

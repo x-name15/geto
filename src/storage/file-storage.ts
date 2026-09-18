@@ -96,19 +96,37 @@ export class FileStorage implements IGetoStorage {
 
     try {
       const raw = await fs.readFile(filePath, 'utf-8');
-      const envelope = JSON.parse(raw) as { type: string; payload: string };
+      const envelope = JSON.parse(raw) as { type?: unknown; payload?: unknown };
+
+      if (
+        !envelope ||
+        typeof envelope !== 'object' ||
+        typeof envelope.type !== 'string' ||
+        !('payload' in envelope)
+      ) {
+        throw new StorageError(`FileStorage found corrupted envelope data for id '${id}'`);
+      }
 
       if (envelope.type === 'buffer') {
+        if (typeof envelope.payload !== 'string') {
+          throw new StorageError(`FileStorage found malformed buffer payload for id '${id}'`);
+        }
         return Buffer.from(envelope.payload, 'base64');
       }
       if (envelope.type === 'string') {
         return envelope.payload;
       }
       if (envelope.type === 'json') {
+        if (typeof envelope.payload !== 'string') {
+          throw new StorageError(`FileStorage found malformed json payload for id '${id}'`);
+        }
         return JSON.parse(envelope.payload);
       }
       return envelope.payload;
     } catch (error: unknown) {
+      if (error instanceof StorageError) {
+        throw error;
+      }
       if (typeof error === 'object' && error !== null && 'code' in error && (error as { code: string }).code === 'ENOENT') {
         throw new StorageError(`No data found for id '${id}'`, { cause: error });
       }

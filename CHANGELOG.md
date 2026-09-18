@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.2] - 2026-09-18 — DoS Defense, Prototype Pollution & Reliability Hardening
+
+### Security & Reliability
+- **CWE-400 Slowloris Request Timeout (`HttpReferenceAdapter`)**: Introduced configurable `timeoutMs` option (defaults to 30,000ms / 30 seconds). Slow or hanging remote endpoints are aborted via `AbortController` and `AbortSignal`, throwing a clean `AdapterError` instead of leaving event loop connections hanging indefinitely.
+- **CWE-400 Decompression / Download Bomb Defense (`HttpReferenceAdapter`)**: Added `maxBytes` response budget option. Pre-checks `Content-Length` headers before body download and incrementally counts byte consumption during stream parsing (`ReadableStreamDefaultReader`), safely cancelling the stream and throwing `AdapterError` if the threshold is exceeded.
+- **CWE-1321 Prototype Pollution Defense (`JsonAdapter`)**: Introduced `IJsonAdapterOptions` with `preventPrototypePollution` (enabled by default). Deserialization strips dangerous keys (`__proto__`, `constructor`, `prototype`) through a reviver during `JSON.parse()`, preventing object prototype poisoning attacks.
+- **CWE-400 Unbounded Memory / Tombstone Pruning (`GetoGateway`)**: Introduced `maxTombstones` in `IGatewayOptions` and a public `gateway.pruneDeleted(maxAgeMs?: number)` method. Long-running production servers can evict old `DELETED` entity descriptors to keep gateway memory footprint bounded.
+- **Strict Input Validation (`BufferAdapter`)**: `BufferAdapter.consume()` and `restore()` now enforce `Buffer.isBuffer()`, rejecting invalid types with an `AdapterError` instead of crashing unpredictably downstream.
+- **Storage Constructor Validation (`GetoGateway`)**: Constructor verifies that `options.storage` is provided and implements `save()`, throwing an immediate, informative `StorageError`.
+- **Corrupted Envelope Defense (`FileStorage`)**: `FileStorage.load()` strictly validates the shape and payload types of deserialized disk envelopes, raising `StorageError` on truncated, null, or corrupted data.
+- **Enhanced `MemoryStorage`**: Added `size` getter and `clear()` method, alongside non-empty identifier validation across all storage operations.
+
 ## [1.1.1] - 2026-09-17 — Failsafe Rollbacks, Type Safety & Immutability Hardening
 
 ### Security & Reliability

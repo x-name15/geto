@@ -141,4 +141,9 @@ export interface IConsumeOptions {
 export interface IGatewayOptions {
   /** The storage provider to use for representations. */
   storage: IGetoStorage;
+  /**
+   * Optional upper limit on the number of DELETED entity tombstones retained in memory.
+   * When exceeded upon deletion, the oldest tombstones are pruned automatically.
+   */
+  maxTombstones?: number;
 }
