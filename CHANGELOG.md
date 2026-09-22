@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.4] - 2026-09-22 — Revamped Readme
+
+### Documentation
+- Refactored README header layout using standard HTML tags for badge alignment.
+- Fixed broken Markdown parsing inside center blocks for npm page rendering.
+
 ## [1.1.3] - 2026-09-18 — Crash Prevention, TOCTOU Race & SSRF Hardening
 
 ### Security & Reliability

@@ -1,18 +1,40 @@
-<h1><img src=".github/images/geto-ascii.png" width="100" height="100"> geto</h1>
+<p align="center">
+  <img src=".github/images/geto-ascii.png" width="120" height="120" alt="geto logo">
+</p>
 
-[![npm version](https://img.shields.io/npm/v/@mrjacket/geto.svg?color=success)](https://www.npmjs.com/package/@mrjacket/geto)
-[![npm downloads](https://img.shields.io/npm/dm/@mrjacket/geto.svg)](https://www.npmjs.com/package/@mrjacket/geto)
-[![node](https://img.shields.io/node/v/@mrjacket/geto.svg)](https://www.npmjs.com/package/@mrjacket/geto)
-[![ci](https://github.com/x-name15/geto/actions/workflows/ci.yml/badge.svg)](https://github.com/x-name15/geto/actions/workflows/ci.yml)
-[![types](https://img.shields.io/npm/types/@mrjacket/geto.svg)](https://www.npmjs.com/package/@mrjacket/geto)
-[![license](https://img.shields.io/npm/l/@mrjacket/geto.svg)](https://github.com/x-name15/geto/blob/main/LICENSE)
+<h1 align="center">geto</h1>
 
-> Consume anything. Use it later.
+<p align="center">
+  <strong>Consume anything. Use it later.</strong>
+</p>
+
+<p align="center">
+  <a href="https://www.npmjs.com/package/@mrjacket/geto">
+    <img src="https://img.shields.io/npm/v/@mrjacket/geto.svg?color=success" alt="npm version">
+  </a>
+  <a href="https://www.npmjs.com/package/@mrjacket/geto">
+    <img src="https://img.shields.io/npm/dm/@mrjacket/geto.svg" alt="npm downloads">
+  </a>
+  <a href="https://www.npmjs.com/package/@mrjacket/geto">
+    <img src="https://img.shields.io/node/v/@mrjacket/geto.svg" alt="node">
+  </a>
+  <a href="https://github.com/x-name15/geto/actions/workflows/ci.yml">
+    <img src="https://github.com/x-name15/geto/actions/workflows/ci.yml/badge.svg" alt="ci">
+  </a>
+  <a href="https://www.npmjs.com/package/@mrjacket/geto">
+    <img src="https://img.shields.io/npm/types/@mrjacket/geto.svg" alt="types">
+  </a>
+  <a href="https://github.com/x-name15/geto/blob/main/LICENSE">
+    <img src="https://img.shields.io/npm/l/@mrjacket/geto.svg" alt="license">
+  </a>
+</p>
 
 ---
 
-*"Exorcise and absorb. Exorcise and absorb. The world just keeps repeating that cycle."*
-*— Suguru Geto, Jujutsu Kaisen*
+<p align="center">
+  <em>"Exorcise and absorb. Exorcise and absorb. The world just keeps repeating that cycle."</em><br>
+  — <strong>Suguru Geto, Jujutsu Kaisen</strong>
+</p>
 
 ---
 
