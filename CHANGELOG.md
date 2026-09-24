@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.1.5] - 2026-09-24
+## [1.1.5] - 2026-09-24 — Coffee!
 
 ### Documentation
 - Add Coffee <3
