@@ -27,6 +27,9 @@
   <a href="https://github.com/x-name15/geto/blob/main/LICENSE">
     <img src="https://img.shields.io/npm/l/@mrjacket/geto.svg" alt="license">
   </a>
+  <a href="https://buymeacoffee.com/mrjacket">
+    <img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?logo=buy-me-a-coffee&logoColor=black" alt="Buy Me A Coffee">
+  </a>
 </p>
 
 ---
@@ -388,6 +391,16 @@ try {
   }
 }
 ```
+
+---
+
+## Support & Sponsoring
+
+If you liked this library or want to support my work, I'd be eternally grateful for a warm coffee! ☕ <3
+
+<a href="https://buymeacoffee.com/mrjacket" target="_blank">
+  <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" width="180">
+</a>
 
 ---
 
