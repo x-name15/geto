@@ -1,5 +1,5 @@
 <p align="center">
-  <img src=".github/images/geto-ascii.png" width="120" height="120" alt="geto logo">
+  <img src=".github/images/chibi-geto.jpg" width="120" height="120" alt="geto logo">
 </p>
 
 <h1 align="center">geto</h1>
